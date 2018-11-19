@@ -53,14 +53,14 @@ class HttpTest(AioHTTPTestCase):
     def __init__(self, methodName):
         super().__init__(methodName)
         self.request_mapping = {}
-        self.web_app = web.Application()
 
     def setUp(self):
+        self.request_mapping = {}
+        self.web_app = web.Application()
+        setup_method = getattr(self, 'before_' + self._testMethodName)
+        if setup_method:
+            setup_method()
         super().setUp()
-        self.reset_mapping()
-
-    def reset_mapping(self):
-        self.request_mapping = {k : RequestMappingValue() for (k, _) in self.request_mapping.items()}
 
     async def get_application(self):
         return self.web_app
@@ -79,7 +79,7 @@ class HttpTest(AioHTTPTestCase):
 
     def handler_factory(self, request_body: dict, response_body: dict, status=200):
         async def handle(request: Request):
-            if request.body_exists and await request.json() != request_body:
+            if request.can_read_body and await request.json() != request_body:
                 raise RequestNotMatchException(await request.json(), request_body)
 
             self.request_mapping[RequestMappingKey(request.path, request.method, request_body)].count += 1

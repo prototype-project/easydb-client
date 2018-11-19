@@ -1,7 +1,7 @@
 import aiohttp
 
 
-class SpaceNotFoundException:
+class SpaceNotFoundException(Exception):
     def __init__(self, spaceName):
         self.spaceName = spaceName
 
@@ -19,6 +19,11 @@ class ResponseData:
         self.data = data
 
 
+class Space:
+    def __init__(self, name):
+        self.name = name
+
+
 class EasydbClient:
     def __init__(self, server_url: str):
         self.server_url = server_url + "/api/v1"
@@ -28,10 +33,17 @@ class EasydbClient:
         return response.data['spaceName']
 
     async def delete_space(self, space_name):
-        response = await self.perform_request(Request("%s/spaces" % self.server_url, 'DELETE'))
+        response = await self.perform_request(Request("%s/spaces/%s" % (self.server_url, space_name), 'DELETE'))
 
         if response.status == 404:
             raise SpaceNotFoundException(space_name)
+
+    async def get_space(self, space_name):
+        response = await self.perform_request(Request("%s/spaces/%s" % (self.server_url, space_name), 'GET'))
+
+        if response.status == 404:
+            raise SpaceNotFoundException(space_name)
+        return Space(response.data['spaceName'])
 
     async def perform_request(self, request: Request):
         async with aiohttp.ClientSession() as session:
