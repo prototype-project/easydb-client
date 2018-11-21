@@ -14,7 +14,7 @@ class RequestMappingKey:
         self.request = request
 
     def __hash__(self):
-        return hash((self.path, self.method, self.request))
+        return hash((self.path, self.method, json.dumps(self.request)))
 
     def __eq__(self, other):
         return self.path == other.path and \
@@ -83,7 +83,7 @@ class HttpTest(AioHTTPTestCase):
                 raise RequestNotMatchException(await request.json(), request_body)
 
             self.request_mapping[RequestMappingKey(request.path, request.method, request_body)].count += 1
-            return web.Response(body=response_body, headers={'Content-Type': 'application/json'}, status=status)
+            return web.Response(body=json.dumps(response_body), headers={'Content-Type': 'application/json'}, status=status)
 
         return handle
 
@@ -94,4 +94,4 @@ class HttpTest(AioHTTPTestCase):
     def read_file(self, file: str=None):
         if file:
             with open(HttpTest.rules_path + '/' + file) as file:
-                return json.dumps(json.load(file))
+                return json.load(file)
