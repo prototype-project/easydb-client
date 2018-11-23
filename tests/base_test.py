@@ -57,7 +57,7 @@ class HttpTest(AioHTTPTestCase):
     def setUp(self):
         self.request_mapping = {}
         self.web_app = web.Application()
-        setup_method = getattr(self, 'before_' + self._testMethodName)
+        setup_method = getattr(self, 'before_' + self._testMethodName, None)
         if setup_method:
             setup_method()
         super().setUp()

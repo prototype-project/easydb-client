@@ -1,0 +1,5 @@
+{
+  "errorCode": "BUCKET_DOES_NOT_EXIST",
+  "status": "NOT_FOUND",
+  "message": "Bucket notExistingBucket does not exist"
+}

@@ -1,1 +1,2 @@
-from .client import EasydbClient, ElementToCreate, ElementField, CreatedElement
+from .client import EasydbClient, ElementToCreate, ElementField, CreatedElement,\
+    SpaceDoesNotExistException, BucketDoesNotExistException

@@ -2,10 +2,24 @@ import aiohttp
 from typing import List
 
 
-class SpaceNotFoundException(Exception):
-    def __init__(self, spaceName):
-        self.spaceName = spaceName
+class SpaceDoesNotExistException(Exception):
+    def __init__(self, space_name):
+        super().__init__()
+        self.space_name = space_name
 
+class BucketDoesNotExistException(Exception):
+    def __init__(self, spaceName, bucket_name):
+        super().__init__()
+        self.space_name = spaceName
+        self.bucket_name = bucket_name
+
+class UnknownError(Exception):
+    def __init__(self, msg):
+        super().__init__(msg)
+
+
+SPACE_DOES_NOT_EXIST = 'SPACE_DOES_NOT_EXIST'
+BUCKET_DOES_NOT_EXIST = 'BUCKET_DOES_NOT_EXIST'
 
 class Request:
     def __init__(self, path: str, method: str, data: dict=None):
@@ -89,26 +103,38 @@ class EasydbClient:
 
     async def create_space(self):
         response = await self.perform_request(Request("%s/spaces" % self.server_url, 'POST'))
+        self.ensure_status_2xx(response)
+
         return response.data['spaceName']
 
     async def delete_space(self, space_name):
         response = await self.perform_request(Request("%s/spaces/%s" % (self.server_url, space_name), 'DELETE'))
 
-        if response.status == 404:
-            raise SpaceNotFoundException(space_name)
+        self.ensure_space_found(response, space_name)
+        self.ensure_status_2xx(response)
 
     async def get_space(self, space_name):
         response = await self.perform_request(Request("%s/spaces/%s" % (self.server_url, space_name), 'GET'))
 
-        if response.status == 404:
-            raise SpaceNotFoundException(space_name)
+        self.ensure_space_found(response, space_name)
+        self.ensure_status_2xx(response)
         return Space(response.data['spaceName'])
 
     async def add_element(self, space_name, bucket_name, element: ElementToCreate):
         response = await self.perform_request(Request("%s/%s/%s" % (self.server_url, space_name, bucket_name), 'POST', data=element.as_json()))
 
+        self.ensure_space_found(response, space_name)
+        self.ensure_bucket_found(response, space_name, bucket_name)
+        self.ensure_status_2xx(response)
         data = response.data
         return CreatedElement(data['id'], data['bucketName'], [ElementField(f['name'], f['value']) for f in data['fields']])
+
+    async def delete_bucket(self, space_name, bucket_name):
+        response = await self.perform_request(Request("%s/%s/%s" % (self.server_url, space_name, bucket_name), 'DELETE'))
+
+        self.ensure_space_found(response, space_name)
+        self.ensure_bucket_found(response, space_name, bucket_name)
+        self.ensure_status_2xx(response)
 
     async def perform_request(self, request: Request):
         async with aiohttp.ClientSession() as session:
@@ -123,3 +149,15 @@ class EasydbClient:
                     return ResponseData(response.status, await response.json())
             else:
                 raise Exception("Incorrect request type")
+
+    def ensure_space_found(self, response, space_name):
+        if response.status == 404 and response.data and response.data['errorCode'] == SPACE_DOES_NOT_EXIST:
+            raise SpaceDoesNotExistException(space_name)
+
+    def ensure_bucket_found(self, response, space_name, bucket_name):
+        if response.status == 404 and response.data and response.data['errorCode'] == BUCKET_DOES_NOT_EXIST:
+            raise BucketDoesNotExistException(space_name, bucket_name)
+
+    def ensure_status_2xx(self, response):
+        if response.status >= 300 or response.status < 200:
+            raise UnknownError("Unexpected status code: %s" % response.status)
