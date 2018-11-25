@@ -1,0 +1,5 @@
+{
+  "errorCode": "ELEMENT_DOES_NOT_EXIST",
+  "status": "NOT_FOUND",
+  "message": "Element with id notExistingElement does not exist in bucket users"
+}
