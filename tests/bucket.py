@@ -1,4 +1,4 @@
-from client import EasydbClient, ElementFields, CreatedElement, SpaceDoesNotExistException, \
+from client import EasydbClient, ElementFields, ElementField, Element, SpaceDoesNotExistException, \
     BucketDoesNotExistException, ElementDoesNotExistException
 from tests.base_test import HttpTest
 
@@ -57,6 +57,21 @@ class BucketTests(HttpTest):
         self.register_route('/api/v1/exampleSpace/users/notExistingElement', 'PUT', 404,
                             request_file='element_request.json', response_file='not_existing_element_response.json')
 
+    def before_test_should_get_element(self):
+        self.register_route('/api/v1/exampleSpace/users/elementId', 'GET', 200, response_file='element_response.json')
+
+    def before_test_should_throw_error_when_getting_element_from_not_existing_space(self):
+        self.register_route('/api/v1/notExistingSpace/users/elementId', 'GET', 404,
+                            response_file='not_existing_space_response.json')
+
+    def before_test_should_throw_error_when_getting_element_from_not_existing_bucket(self):
+        self.register_route('/api/v1/exampleSpace/notExistingBucket/elementId', 'GET', 404,
+                            response_file='not_existing_bucket_response.json')
+
+    def before_test_should_throw_error_when_getting_not_existing_element(self):
+        self.register_route('/api/v1/exampleSpace/users/notExistingElement', 'GET', 404,
+                            response_file='not_existing_element_response.json')
+
     def test_should_add_element_to_bucket(self):
         # when
         created_element = self.loop.run_until_complete(self.easydb_client. \
@@ -68,7 +83,7 @@ class BucketTests(HttpTest):
         # then
         self.assertEqual(self.verify('/api/v1/exampleSpace/users', 'POST', 'element_request.json'), 1)
         self.assertEqual(created_element,
-                         CreatedElement('elementId', 'users')
+                         Element('elementId')
                          .add_field('firstName', 'John')
                          .add_field('lastName', 'Smith'))
 
@@ -171,7 +186,7 @@ class BucketTests(HttpTest):
                                                   .add_field('lastName', 'Smith')))
 
         # and
-        self.assertEquals(
+        self.assertEqual(
             self.verify('/api/v1/exampleSpace/notExistingBucket/elementId', 'PUT', 'element_request.json'), 1)
 
     def test_should_throw_error_when_updating_not_existing_element(self):
@@ -184,5 +199,40 @@ class BucketTests(HttpTest):
                                                   .add_field('lastName', 'Smith')))
 
         # and
-        self.assertEquals(self.verify('/api/v1/exampleSpace/users/notExistingElement', 'PUT', 'element_request.json'),
-                          1)
+        self.assertEquals(self.verify('/api/v1/exampleSpace/users/notExistingElement', 'PUT', 'element_request.json'), 1)
+
+    def test_should_get_element(self):
+        # when
+        element = self.loop.run_until_complete(self.easydb_client.get_element('exampleSpace', 'users', 'elementId'))
+
+        # then
+        self.assertEqual(element, Element('elementId').add_field('firstName', 'John').add_field('lastName', 'Smith'))
+        self.assertEqual(self.verify('/api/v1/exampleSpace/users/elementId', 'GET'), 1)
+
+    def test_should_throw_error_when_getting_element_from_not_existing_space(self):
+        # expect
+        with self.assertRaises(SpaceDoesNotExistException):
+            self.loop.run_until_complete(
+                self.easydb_client.get_element('notExistingSpace', 'users', 'elementId'))
+
+        # and
+        self.assertEqual(self.verify('/api/v1/notExistingSpace/users/elementId', 'GET'), 1)
+
+
+    def test_should_throw_error_when_getting_element_from_not_existing_bucket(self):
+        # expect
+        with self.assertRaises(BucketDoesNotExistException):
+            self.loop.run_until_complete(
+                self.easydb_client.get_element('exampleSpace', 'notExistingBucket', 'elementId'))
+
+        # and
+        self.assertEqual(self.verify('/api/v1/exampleSpace/notExistingBucket/elementId', 'GET'), 1)
+
+    def test_should_throw_error_when_getting_not_existing_element(self):
+        # expect
+        with self.assertRaises(ElementDoesNotExistException):
+            self.loop.run_until_complete(
+                self.easydb_client.get_element('exampleSpace', 'users', 'notExistingElement'))
+
+        # and
+        self.assertEqual(self.verify('/api/v1/exampleSpace/users/notExistingElement', 'GET'), 1)
