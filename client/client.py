@@ -53,8 +53,8 @@ ELEMENT_DOES_NOT_EXIST = 'ELEMENT_DOES_NOT_EXIST'
 
 
 class Request:
-    def __init__(self, path: str, method: str, data: dict = None):
-        self.path = path
+    def __init__(self, url: str, method: str, data: dict = None):
+        self.path = url
         self.method = method
         self.data = data
 
@@ -69,8 +69,11 @@ class Space:
     def __init__(self, name):
         self.name = name
 
-    def __str__(self):
+    def __repr__(self):
         return 'Space(name=%s)' % self.name
+
+    def __str__(self):
+        return self.__repr__()
 
 class ElementField:
     def __init__(self, name, value):
@@ -91,7 +94,7 @@ class ElementField:
         return self.__str__()
 
 
-class ElementFields:
+class MultipleElementFields:
     def __init__(self, fields: List[ElementField] = None):
         if not fields:
             self.fields = []
@@ -104,7 +107,7 @@ class ElementFields:
 
     def __str__(self):
         fields_str = ", ".join(['{%s = %s}' % (f.name, f.value) for f in self.fields])
-        return 'ElementToCreate(fields=[ %s ])' % fields_str
+        return 'ElementFields(fields=[ %s ])' % fields_str
 
     def __repr__(self):
         return self.__str__()
@@ -119,23 +122,25 @@ class ElementFields:
         return {'fields': [dict((('name', f.name), ('value', f.value))) for f in self.fields]}
 
 
-
 class Element:
     def __init__(self, identifier: str, fields: List[ElementField] = None):
-        self.element_fields = ElementFields(fields)
         self.identifier = identifier
+        self.element_fields = MultipleElementFields(fields)
 
     def __eq__(self, other):
         return self.identifier == other.identifier and \
-               self.fields == other.fields
+               self.element_fields == other.element_fields
 
     def __hash__(self):
-        return hash((self.identifier, self.fields))
+        return hash((self.identifier, self.element_fields))
+
+    def __repr__(self):
+        fields_str = ", ".join(['{%s = %s}' % (f.name, f.value) for f in self.fields])
+        return 'Element(identifier=%s, fields=[ %s ])' % (
+            self.identifier, fields_str)
 
     def __str__(self):
-        fields_str = ", ".join(['{%s = %s}' % (f.name, f.value) for f in self.fields])
-        return 'CreatedElement(identifier=%s, fields=[ %s ])' % (
-            self.identifier, fields_str)
+        return self.__repr__()
 
     @property
     def fields(self):
@@ -144,6 +149,26 @@ class Element:
     def add_field(self, name, value):
         self.element_fields.add_field(name, value)
         return self
+
+
+class FilterQuery:
+    def __init__(self, space_name, bucket_name, limit=20, offset=0):
+        self.space_name = space_name
+        self.bucket_name = bucket_name
+        self.limit = limit
+        self.offset = offset
+
+
+class PaginatedElements:
+    def __init__(self, elements:List[Element]=None, next_link: str=None):
+        self.elements = elements if elements else []
+        self.next_link = next_link
+
+    def __eq__(self, other):
+        return self.elements == other.elements and self.next_link == other.next_link
+
+    def __hash__(self):
+        return hash((self.elements, self.next_link))
 
 
 class EasydbClient:
@@ -169,7 +194,7 @@ class EasydbClient:
         self.ensure_status_2xx(response)
         return Space(response.data['spaceName'])
 
-    async def add_element(self, space_name, bucket_name, element_fields: ElementFields):
+    async def add_element(self, space_name, bucket_name, element_fields: MultipleElementFields):
         response = await self.perform_request(
             Request("%s/%s/%s" % (self.server_url, space_name, bucket_name), 'POST', data=element_fields.as_json()))
 
@@ -196,7 +221,7 @@ class EasydbClient:
         self.ensure_element_found(response, space_name, bucket_name, element_id)
         self.ensure_status_2xx(response)
 
-    async def update_element(self, space_name, bucket_name, element_id, element_fields: ElementFields):
+    async def update_element(self, space_name, bucket_name, element_id, element_fields: MultipleElementFields):
         response = await self.perform_request(
             Request('%s/%s/%s/%s' % (self.server_url, space_name, bucket_name, element_id), 'PUT',
                     data=element_fields.as_json()))
@@ -215,8 +240,27 @@ class EasydbClient:
         self.ensure_element_found(response, space_name, bucket_name, element_id)
         self.ensure_status_2xx(response)
         element_id = response.data['id']
-        fields = [ElementField(f['name'], f['value']) for f in response.data['fields']]
+        fields = self.parse_element_fields(response.data['fields'])
         return Element(element_id, fields)
+
+    async def filter_elements_by_query(self, query: FilterQuery):
+        response = await self.perform_request(
+            Request('%s/%s/%s?limit=%d&offset=%d' %
+                    (self.server_url, query.space_name, query.bucket_name, query.limit, query.offset), 'GET'))
+
+        self.ensure_space_found(response, query.space_name)
+        self.ensure_bucket_found(response, query.space_name, query.bucket_name)
+        return await self._parse_filter_response(response)
+
+    async def filter_elements_by_link(self, link: str):
+        response = await self.perform_request(Request(link, 'GET'))
+        return self._parse_filter_response(response)
+
+    async def _parse_filter_response(self, response):
+        self.ensure_status_2xx(response)
+        next_link = response.data['nextPageLink']
+        elements = self.parse_elements(response.data['results'])
+        return PaginatedElements(elements, next_link)
 
     @staticmethod
     async def perform_request(request: Request):
@@ -246,3 +290,11 @@ class EasydbClient:
     def ensure_status_2xx(response):
         if response.status >= 300 or response.status < 200:
             raise UnknownError("Unexpected status code: %s" % response.status)
+
+    @staticmethod
+    def parse_elements(data: dict):
+        return [Element(f['id'], EasydbClient.parse_element_fields(f['fields'])) for f in data]
+
+    @staticmethod
+    def parse_element_fields(data: dict):
+        return [ElementField(f['name'], f['value']) for f in data]

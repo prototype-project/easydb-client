@@ -1,2 +1,3 @@
-from .client import EasydbClient, ElementFields, ElementField, Element,\
-    SpaceDoesNotExistException, BucketDoesNotExistException, ElementDoesNotExistException
+from .client import EasydbClient, MultipleElementFields, ElementField, Element,\
+    SpaceDoesNotExistException, BucketDoesNotExistException, ElementDoesNotExistException, FilterQuery, \
+    PaginatedElements

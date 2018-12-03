@@ -8,21 +8,26 @@ from aiohttp.test_utils import AioHTTPTestCase, TestServer
 
 
 class RequestMappingKey:
-    def __init__(self, path: str, method: str = None, request: dict = None):
+    def __init__(self, path: str, method: str = None, request: dict = None, query_params: dict = None):
         self.path = path
         self.method = method
         self.request = request
+        self.query_params = query_params
+        if not self.query_params:
+            self.query_params = {}
 
     def __hash__(self):
-        return hash((self.path, self.method, json.dumps(self.request)))
+        return hash((self.path, self.method, json.dumps(self.request), tuple(self.query_params)))
 
     def __eq__(self, other):
         return self.path == other.path and \
                self.method == other.method and \
-               self.request == other.request
+               self.request == other.request and \
+               tuple(self.query_params) == tuple(other.query_params)
 
     def __str__(self):
-        return "RequestMappingKey(path = %s, method = %s, request = %s)" % (self.path, self.method, self.request)
+        return "RequestMappingKey(path = %s, method = %s, request = %s, query_params = %s)" % \
+               (self.path, self.method, self.request, self.query_params)
 
     def __repr__(self):
         return self.__str__()
@@ -41,21 +46,20 @@ class RequestNotMatchException(Exception):
 
 
 class RequestMappingValue:
-    def __init__(self):
+    def __init__(self, response_body: dict=None):
         self.count = 0
+        self.response_body = response_body if response_body else {}
 
 
 class HttpTest(AioHTTPTestCase):
     rules_path = os.path.join(os.path.dirname(__file__), 'rules')
-    server_port = 8080
+    server_port = 8000
     server_url = 'http://localhost:' + str(server_port)
-
-    def __init__(self, methodName):
-        super().__init__(methodName)
-        self.request_mapping = {}
 
     def setUp(self):
         self.request_mapping = {}
+        self.routes = set()
+
         self.web_app = web.Application()
         setup_method = getattr(self, 'before_' + self._testMethodName, None)
         if setup_method:
@@ -68,30 +72,35 @@ class HttpTest(AioHTTPTestCase):
     async def get_server(self, app):
         return TestServer(app=app, loop=self.loop, port=self.server_port)
 
-    def register_route(self, path: str, method: str, status: int=200, request_file: str=None, response_file: str=None):
+    def register_route(self, path: str, method: str, status: int = 200, request_file: str = None,
+                       response_file: str = None, query_params: dict = None):
         request_body = self.read_file(request_file)
         response_body = self.read_file(response_file)
 
-        self.web_app.router.add_routes(
-            [route(method, path, handler=self.handler_factory(request_body, response_body, status))])
+        self.request_mapping[RequestMappingKey(path, method, request_body, query_params)] = RequestMappingValue(response_body)
 
-        self.request_mapping[RequestMappingKey(path, method, request_body)] = RequestMappingValue()
+        if path not in self.routes:
+            self.web_app.router.add_routes(
+                [route(method, path, handler=self.handler_factory(request_body, status))])
+        self.routes.add(path)
 
-    def handler_factory(self, request_body: dict, response_body: dict, status=200):
+    def handler_factory(self, request_body: dict, status=200):
         async def handle(request: Request):
             if request.can_read_body and await request.json() != request_body:
                 raise RequestNotMatchException(await request.json(), request_body)
 
-            self.request_mapping[RequestMappingKey(request.path, request.method, request_body)].count += 1
-            return web.Response(body=json.dumps(response_body), headers={'Content-Type': 'application/json'}, status=status)
+            request_mapping = self.request_mapping[RequestMappingKey(request.path, request.method, request_body, dict(request.query))]
+            request_mapping.count += 1
+            return web.Response(body=json.dumps(request_mapping.response_body), headers={'Content-Type': 'application/json'},
+                                status=status)
 
         return handle
 
-    def verify(self, path: str, method: str, request_file: str=None):
+    def verify(self, path: str, method: str, request_file: str = None, query_params: dict = None):
         request_body = self.read_file(request_file)
-        return self.request_mapping.get(RequestMappingKey(path, method, request_body), RequestMappingValue()).count
+        return self.request_mapping.get(RequestMappingKey(path, method, request_body, query_params), RequestMappingValue()).count
 
-    def read_file(self, file: str=None):
+    def read_file(self, file: str = None):
         if file:
             with open(HttpTest.rules_path + '/' + file) as file:
                 return json.load(file)

@@ -1,0 +1,31 @@
+{
+  "nextPageLink": "http://localhost:8000/api/v1/exampleSpace/users/?limit2&offset=2",
+  "results": [
+    {
+      "id": "id1",
+      "fields": [
+        {
+          "name": "firstName",
+          "value": "Chandler"
+        },
+        {
+          "name": "lastName",
+          "value": "Bing"
+        }
+      ]
+    },
+    {
+      "id": "id2",
+      "fields": [
+        {
+          "name": "firstName",
+          "value": "Joe"
+        },
+        {
+          "name": "lastName",
+          "value": "Tribbiani"
+        }
+      ]
+    }
+  ]
+}
