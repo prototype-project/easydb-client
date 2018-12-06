@@ -250,13 +250,13 @@ class EasydbClient:
 
         self.ensure_space_found(response, query.space_name)
         self.ensure_bucket_found(response, query.space_name, query.bucket_name)
-        return await self._parse_filter_response(response)
+        return self._parse_filter_response(response)
 
     async def filter_elements_by_link(self, link: str):
         response = await self.perform_request(Request(link, 'GET'))
         return self._parse_filter_response(response)
 
-    async def _parse_filter_response(self, response):
+    def _parse_filter_response(self, response):
         self.ensure_status_2xx(response)
         next_link = response.data['nextPageLink']
         elements = self.parse_elements(response.data['results'])
@@ -266,7 +266,7 @@ class EasydbClient:
     async def perform_request(request: Request):
         async with aiohttp.ClientSession() as session:
             if request.method in ['GET', 'POST', 'DELETE', 'PUT']:
-                async with session.request(request.method, request.path) as response:
+                async with session.request(request.method, request.path, json=request.data) as response:
                     return ResponseData(response.status, await response.json())
             else:
                 raise Exception("Incorrect request type")

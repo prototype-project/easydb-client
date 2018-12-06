@@ -12,7 +12,7 @@ class SpaceTests(HttpTest):
         self.easydb_client = EasydbClient(self.server_url)
 
     def before_test_should_create_space(self):
-        self.register_route('/api/v1/spaces', 'POST', 200, 'space.json', "space.json")
+        self.register_route('/api/v1/spaces', 'POST', 200, response_file='space.json')
 
     def before_test_should_delete_space(self):
         self.register_route('/api/v1/spaces/exampleSpace', 'DELETE', 200)

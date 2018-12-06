@@ -1,5 +1,5 @@
 {
-  "nextPageLink": "http://localhost:8000/api/v1/exampleSpace/users/?limit2&offset=2",
+  "nextPageLink": "http://localhost:8000/api/v1/exampleSpace/users?limit=2&offset=2",
   "results": [
     {
       "id": "id1",

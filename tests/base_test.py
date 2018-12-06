@@ -15,6 +15,12 @@ class RequestRecord:
         self.request_body = request_body if request_body else {}
         self.query_params = query_params if query_params else {}
 
+    def __repr__(self):
+        return 'RequestRecord(path = %s, method = %s, request_body = %s, query_params = %s)' %\
+               (self.path, self.method, self.request_body, self.query_params)
+
+    def __str__(self):
+        return self.__repr__()
 
 class ResponseRecord:
     def __init__(self, status: int = 200, response_body: dict = None):
@@ -31,6 +37,11 @@ class RequestNotMatchException(Exception):
         self.actual = actual
         self.closest_match = closest_match
 
+    def __repr__(self):
+        return 'RequestNotMatchException(given = %s, closest_match = %s)' % (self.actual, self.closest_match)
+
+    def __str__(self):
+        return self.__repr__()
 
 # /users/ POST req = {} query_params = {} -> status  resp = {}
 
