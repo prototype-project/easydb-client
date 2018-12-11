@@ -1,0 +1,11 @@
+{
+  "type": "UPDATE",
+  "bucketName": "users",
+  "elementId": "exampleElementId",
+  "fields": [
+    {
+      "name": "username",
+      "value": "Mirek"
+    }
+  ]
+}

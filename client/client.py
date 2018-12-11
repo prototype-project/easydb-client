@@ -15,31 +15,49 @@ class SpaceDoesNotExistException(Exception):
 
 
 class BucketDoesNotExistException(Exception):
-    def __init__(self, space_name, bucket_name):
+    def __init__(self, space_name, bucket_name, transaction_id=None):
         super().__init__()
         self.space_name = space_name
         self.bucket_name = bucket_name
+        self.transaction_id = transaction_id
 
     def __str__(self):
-        return 'BucketDoesNotExistException(space_name=%s, bucket_name=%s)' % (self.space_name, self.bucket_name)
+        return 'BucketDoesNotExistException(space_name=%s, bucket_name=%s, transaction_id=%s)' % \
+               (self.space_name, self.bucket_name, self.transaction_id)
 
     def __repr__(self):
         return self.__str__()
 
 
 class ElementDoesNotExistException(Exception):
-    def __init__(self, space_name, bucket_name, element_id):
+    def __init__(self, space_name, bucket_name, element_id, transaction_id=None):
         super().__init__()
         self.space_name = space_name
         self.bucket_name = bucket_name
         self.element_id = element_id
+        self.transaction_id = transaction_id
 
     def __str__(self):
-        return 'ElementDoesNotExistException(space_name=%s, bucket_name=%s, element_id=%s)' % \
-               (self.space_name, self.bucket_name, self.element_id)
+        return 'ElementDoesNotExistException(space_name=%s, bucket_name=%s, element_id=%s, transaction_id=%s)' % \
+               (self.space_name, self.bucket_name, self.element_id, self.transaction_id)
 
     def __repr__(self):
         return self.__str__()
+
+
+class TransactionDoesNotExistException(Exception):
+    def __init__(self, transaction_id: str):
+        self.transaction_id = transaction_id
+
+    def __str__(self):
+        return 'TransactionDoesNotExistException(transaction_id=%s)' % self.transaction_id
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class UnknownOperationException(Exception):
+    pass
 
 
 class UnknownError(Exception):
@@ -50,6 +68,8 @@ class UnknownError(Exception):
 SPACE_DOES_NOT_EXIST = 'SPACE_DOES_NOT_EXIST'
 BUCKET_DOES_NOT_EXIST = 'BUCKET_DOES_NOT_EXIST'
 ELEMENT_DOES_NOT_EXIST = 'ELEMENT_DOES_NOT_EXIST'
+TRANSACTION_DOES_NOT_EXISTS = 'TRANSACTION_DOES_NOT_EXISTS'
+OPERATION_TYPES = ['CREATE', 'UPDATE', 'DELETE', 'READ']
 
 
 class Request:
@@ -74,6 +94,7 @@ class Space:
 
     def __str__(self):
         return self.__repr__()
+
 
 class ElementField:
     def __init__(self, name, value):
@@ -151,6 +172,11 @@ class Element:
         return self
 
 
+class Transaction:
+    def __init__(self, transaction_id):
+        self.transaction_id = transaction_id
+
+
 class FilterQuery:
     def __init__(self, space_name, bucket_name, limit=20, offset=0):
         self.space_name = space_name
@@ -160,7 +186,7 @@ class FilterQuery:
 
 
 class PaginatedElements:
-    def __init__(self, elements:List[Element]=None, next_link: str=None):
+    def __init__(self, elements: List[Element] = None, next_link: str = None):
         self.elements = elements if elements else []
         self.next_link = next_link
 
@@ -169,6 +195,33 @@ class PaginatedElements:
 
     def __hash__(self):
         return hash((self.elements, self.next_link))
+
+
+class TransactionOperation:
+    def __init__(self, type: str, bucket_name: str, element_id: str = None, fields: List[ElementField] = None):
+        self.type = type
+        self.bucket_name = bucket_name
+        self.element_id = element_id
+        self.fields = MultipleElementFields(fields)
+
+    def as_json(self):
+        json = {'type': self.type, 'bucketName': self.bucket_name, 'elementId': self.element_id}
+        json.update(self.fields.as_json())
+        return json
+
+
+class OperationResult:
+    def __init__(self, element: Element):
+        self.element = element
+
+    def is_empty(self):
+        return not self.element
+
+    def __eq__(self, other):
+        return self.element == other.element
+
+    def __hash__(self):
+        return hash(self.element)
 
 
 class EasydbClient:
@@ -256,10 +309,32 @@ class EasydbClient:
         response = await self.perform_request(Request(link, 'GET'))
         return self._parse_filter_response(response)
 
+    async def begin_transaction(self, space_name: str):
+        response = await self.perform_request(
+            Request('%s/transactions/%s' % (self.server_url, space_name), 'POST'))
+
+        self.ensure_space_found(response, space_name)
+        self.ensure_status_2xx(response)
+        return self.parse_transaction(response.data)
+
+    async def add_operation(self, transaction_id: str, operation: TransactionOperation):
+        self.ensure_operation_constraints(operation)
+
+        response = await self.perform_request(
+            Request('%s/transactions/%s/add-operation' % (self.server_url, transaction_id), 'POST',
+                    operation.as_json()))
+
+        self.ensure_transaction_found(response, transaction_id)
+        self.ensure_bucket_found(response, space_name=None, bucket_name=operation.bucket_name,
+                                 transaction_id=transaction_id)
+        self.ensure_element_found(response, space_name=None, bucket_name=operation.bucket_name,
+                                  element_id=operation.element_id, transaction_id=transaction_id)
+        return self.parse_operation_result(response.data)
+
     def _parse_filter_response(self, response):
         self.ensure_status_2xx(response)
         next_link = response.data['nextPageLink']
-        elements = self.parse_elements(response.data['results'])
+        elements = self.parse_multiple_elements(response.data['results'])
         return PaginatedElements(elements, next_link)
 
     @staticmethod
@@ -277,14 +352,19 @@ class EasydbClient:
             raise SpaceDoesNotExistException(space_name)
 
     @staticmethod
-    def ensure_bucket_found(response, space_name, bucket_name):
+    def ensure_bucket_found(response, space_name, bucket_name, transaction_id=None):
         if response.status == 404 and response.data and response.data['errorCode'] == BUCKET_DOES_NOT_EXIST:
-            raise BucketDoesNotExistException(space_name, bucket_name)
+            raise BucketDoesNotExistException(space_name, bucket_name, transaction_id)
 
     @staticmethod
-    def ensure_element_found(response, space_name, bucket_name, element_id):
+    def ensure_element_found(response, space_name, bucket_name, element_id, transaction_id=None):
         if response.status == 404 and response.data and response.data['errorCode'] == ELEMENT_DOES_NOT_EXIST:
-            raise ElementDoesNotExistException(space_name, bucket_name, element_id)
+            raise ElementDoesNotExistException(space_name, bucket_name, element_id, transaction_id)
+
+    @staticmethod
+    def ensure_transaction_found(response, transaction_id):
+        if response.status == 404 and response.data and response.data['errorCode'] == TRANSACTION_DOES_NOT_EXISTS:
+            raise TransactionDoesNotExistException(transaction_id)
 
     @staticmethod
     def ensure_status_2xx(response):
@@ -292,9 +372,26 @@ class EasydbClient:
             raise UnknownError("Unexpected status code: %s" % response.status)
 
     @staticmethod
-    def parse_elements(data: dict):
+    def ensure_operation_constraints(operation):
+        if operation.type not in OPERATION_TYPES:
+            raise UnknownOperationException()
+
+    @staticmethod
+    def parse_multiple_elements(data: dict):
         return [Element(f['id'], EasydbClient.parse_element_fields(f['fields'])) for f in data]
+
+    @staticmethod
+    def parse_single_element(data: dict):
+        return Element(data['id'], EasydbClient.parse_element_fields(data['fields']))
 
     @staticmethod
     def parse_element_fields(data: dict):
         return [ElementField(f['name'], f['value']) for f in data]
+
+    @staticmethod
+    def parse_transaction(data: dict):
+        return Transaction(data['transactionId'])
+
+    @staticmethod
+    def parse_operation_result(data: dict):
+        return OperationResult(EasydbClient.parse_single_element(data['element']) if data['element'] else None)

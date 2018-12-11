@@ -1,0 +1,11 @@
+{
+  "element": {
+    "id": "exampleElementId",
+    "fields": [
+      {
+        "name": "username",
+        "value": "Heniek"
+      }
+    ]
+  }
+}

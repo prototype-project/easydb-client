@@ -1,9 +1,10 @@
 from client import EasydbClient, SpaceDoesNotExistException, TransactionOperation, ElementField, OperationResult, \
-    Element
+    Element, TransactionDoesNotExistException, BucketDoesNotExistException, ElementDoesNotExistException
+from client.client import UnknownOperationException
 from tests.base_test import HttpTest
 
 
-class TransactionsTest(HttpTest):
+class TransactionTest(HttpTest):
     def setUp(self):
         super().setUp()
         self.easydb_client = EasydbClient(self.server_url)
@@ -24,6 +25,21 @@ class TransactionsTest(HttpTest):
         self.register_route('/api/v1/transactions/exampleTransactionId/add-operation', 'POST', 201,
                             request_file='add_read_operation_request.json',
                             response_file='add_read_operation_response.json')
+
+    def before_test_should_throw_error_when_adding_operation_to_not_existing_transaction(self):
+        self.register_route('/api/v1/transactions/notExistingOperationId/add-operation', 'POST', 404,
+                            request_file='add_read_operation_request.json',
+                            response_file='not_existing_transaction_response.json')
+
+    def before_test_should_throw_error_when_adding_operation_to_not_existing_bucket(self):
+        self.register_route('/api/v1/transactions/exampleTransactionId/add-operation', 'POST', 404,
+                            request_file='add_read_operation_not_existing_bucket_request.json',
+                            response_file='not_existing_bucket_response.json')
+
+    def before_test_should_throw_error_when_adding_operation_to_not_existing_element(self):
+        self.register_route('/api/v1/transactions/exampleTransactionId/add-operation', 'POST', 404,
+                            request_file='add_read_operation_not_existing_element_request.json',
+                            response_file='not_existing_element_response.json')
 
     def test_should_begin_transaction(self):
         # when
@@ -67,3 +83,48 @@ class TransactionsTest(HttpTest):
         self.assertEqual(operation_result, OperationResult(Element('exampleElementId').add_field('username', 'Heniek')))
         self.assertEqual(self.verify('/api/v1/transactions/exampleTransactionId/add-operation', 'POST',
                                      request_file='add_read_operation_request.json'), 1)
+
+    def test_should_throw_error_when_adding_operation_to_not_existing_transaction(self):
+        # given
+        operation = TransactionOperation('READ', 'users', 'exampleElementId')
+
+        # expect
+        with self.assertRaises(TransactionDoesNotExistException):
+            self.loop.run_until_complete(self.easydb_client.add_operation('notExistingOperationId', operation))
+
+        # and
+        self.assertEqual(self.verify('/api/v1/transactions/notExistingOperationId/add-operation', 'POST',
+                                     request_file='add_read_operation_request.json'), 1)
+
+    def test_should_throw_error_when_adding_operation_to_not_existing_bucket(self):
+        # given
+        operation = TransactionOperation('READ', 'notExistingBucket', 'exampleElementId')
+
+        # expect
+        with self.assertRaises(BucketDoesNotExistException):
+            self.loop.run_until_complete(self.easydb_client.add_operation('exampleTransactionId', operation))
+
+        # and
+        self.assertEqual(self.verify('/api/v1/transactions/exampleTransactionId/add-operation', 'POST',
+                                     request_file='add_read_operation_not_existing_bucket_request.json'), 1)
+
+    def test_should_throw_error_when_adding_operation_to_not_existing_element(self):
+        # given
+        operation = TransactionOperation('READ', 'users', 'notExistingElement')
+
+        # expect
+        with self.assertRaises(ElementDoesNotExistException):
+            self.loop.run_until_complete(self.easydb_client.add_operation('exampleTransactionId', operation))
+
+        # and
+        self.assertEqual(self.verify('/api/v1/transactions/exampleTransactionId/add-operation', 'POST',
+                                     request_file='add_read_operation_not_existing_element_request.json'), 1)
+
+    def test_should_throw_error_when_adding_operation_with_not_existing_type(self):
+        # given
+        operation = TransactionOperation('UNKNOWN', 'users', 'notExistingElement')
+
+        # expect
+        with self.assertRaises(UnknownOperationException):
+            self.loop.run_until_complete(self.easydb_client.add_operation('exampleTransactionId', operation))
+

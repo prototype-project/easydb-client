@@ -1,6 +1,7 @@
 import unittest
 
 from tests.bucket import BucketTests
+from tests.transactions import TransactionTest
 from .base_test import HttpTest
 
 from client import EasydbClient, SpaceDoesNotExistException
@@ -70,6 +71,7 @@ def suite():
     test_suite = unittest.TestSuite()
     test_suite.addTest(SpaceTests("SpaceTests"))
     test_suite.addTest(BucketTests("BucketTests"))
+    test_suite.addTest(TransactionTest("TransactionTests"))
     return suite
 
 
