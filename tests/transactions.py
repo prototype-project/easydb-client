@@ -27,7 +27,7 @@ class TransactionTest(HttpTest):
                             response_file='add_read_operation_response.json')
 
     def before_test_should_throw_error_when_adding_operation_to_not_existing_transaction(self):
-        self.register_route('/api/v1/transactions/notExistingOperationId/add-operation', 'POST', 404,
+        self.register_route('/api/v1/transactions/notExistingTransactionId/add-operation', 'POST', 404,
                             request_file='add_read_operation_request.json',
                             response_file='not_existing_transaction_response.json')
 
@@ -40,6 +40,13 @@ class TransactionTest(HttpTest):
         self.register_route('/api/v1/transactions/exampleTransactionId/add-operation', 'POST', 404,
                             request_file='add_read_operation_not_existing_element_request.json',
                             response_file='not_existing_element_response.json')
+
+    def before_test_should_commit_transaction(self):
+        self.register_route('/api/v1/transactions/exampleTransactionId/commit', 'POST', 201)
+
+    def before_test_should_throw_error_when_committing_not_existing_transaction(self):
+        self.register_route('/api/v1/transactions/notExistingTransactionId/commit', 'POST', 404,
+                            response_file='not_existing_transaction_response.json')
 
     def test_should_begin_transaction(self):
         # when
@@ -90,10 +97,10 @@ class TransactionTest(HttpTest):
 
         # expect
         with self.assertRaises(TransactionDoesNotExistException):
-            self.loop.run_until_complete(self.easydb_client.add_operation('notExistingOperationId', operation))
+            self.loop.run_until_complete(self.easydb_client.add_operation('notExistingTransactionId', operation))
 
         # and
-        self.assertEqual(self.verify('/api/v1/transactions/notExistingOperationId/add-operation', 'POST',
+        self.assertEqual(self.verify('/api/v1/transactions/notExistingTransactionId/add-operation', 'POST',
                                      request_file='add_read_operation_request.json'), 1)
 
     def test_should_throw_error_when_adding_operation_to_not_existing_bucket(self):
@@ -128,3 +135,17 @@ class TransactionTest(HttpTest):
         with self.assertRaises(UnknownOperationException):
             self.loop.run_until_complete(self.easydb_client.add_operation('exampleTransactionId', operation))
 
+    def test_should_commit_transaction(self):
+        # given
+        self.loop.run_until_complete(self.easydb_client.commit_transaction('exampleTransactionId'))
+
+        # expect
+        self.assertEqual(self.verify('/api/v1/transactions/exampleTransactionId/commit', 'POST'), 1)
+
+    def test_should_throw_error_when_committing_not_existing_transaction(self):
+        # expect
+        with self.assertRaises(TransactionDoesNotExistException):
+            self.loop.run_until_complete(self.easydb_client.commit_transaction('notExistingTransactionId'))
+
+        # and
+        self.assertEqual(self.verify('/api/v1/transactions/notExistingTransactionId/commit', 'POST'), 1)

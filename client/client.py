@@ -329,7 +329,15 @@ class EasydbClient:
                                  transaction_id=transaction_id)
         self.ensure_element_found(response, space_name=None, bucket_name=operation.bucket_name,
                                   element_id=operation.element_id, transaction_id=transaction_id)
+        self.ensure_status_2xx(response)
         return self.parse_operation_result(response.data)
+
+    async def commit_transaction(self, transaction_id):
+        response = await self.perform_request(
+            Request('%s/transactions/%s/commit' % (self.server_url, transaction_id), 'POST'))
+
+        self.ensure_transaction_found(response, transaction_id)
+        self.ensure_status_2xx(response)
 
     def _parse_filter_response(self, response):
         self.ensure_status_2xx(response)
