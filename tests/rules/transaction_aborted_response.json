@@ -1,0 +1,5 @@
+{
+  "errorCode": "TRANSACTION_ABORTED",
+  "status": "TRANSACTION_ABORTED",
+  "message": "Transaction was aborted. Possible many conflicting transactions running at the same time. Try later again"
+}

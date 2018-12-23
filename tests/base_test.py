@@ -16,20 +16,21 @@ class RequestRecord:
         self.query_params = query_params if query_params else {}
 
     def __repr__(self):
-        return 'RequestRecord(path = %s, method = %s, request_body = %s, query_params = %s)' %\
+        return 'RequestRecord(path = %s, method = %s, request_body = %s, query_params = %s)' % \
                (self.path, self.method, self.request_body, self.query_params)
 
     def __str__(self):
         return self.__repr__()
 
+
 class ResponseRecord:
     def __init__(self, status: int = 200, response_body: dict = None):
-        self.invokaction_count = 0
+        self.invocation_count = 0
         self.status = status
         self.response_body = response_body if response_body else {}
 
     def mark_invocation(self):
-        self.invokaction_count += 1
+        self.invocation_count += 1
 
 
 class RequestNotMatchException(Exception):
@@ -43,10 +44,10 @@ class RequestNotMatchException(Exception):
     def __str__(self):
         return self.__repr__()
 
-# /users/ POST req = {} query_params = {} -> status  resp = {}
 
 class RequestMappingRecorder:
     NUMBER_OF_RECORD_ATTRIBUTES = 4
+
     def __init__(self):
         self.records = []
 
@@ -58,7 +59,7 @@ class RequestMappingRecorder:
         closest = None
 
         for req, res in self.records_for_route(given.path, given.method):
-            match_fields = 2 # path and method match for sure
+            match_fields = 2  # path and method match for sure
             if not req.request_body or req.request_body == given.request_body:
                 match_fields += 1
             if not req.query_params or req.query_params == given.query_params:
@@ -72,7 +73,7 @@ class RequestMappingRecorder:
 
         return closest[1]
 
-    def contains_route(self, path:str, method:str):
+    def contains_route(self, path: str, method: str):
         return len(self.records_for_route(path, method))
 
     def records_for_route(self, path, method):
@@ -126,7 +127,7 @@ class HttpTest(AioHTTPTestCase):
     def verify(self, path: str, method: str, request_file: str = None, query_params: dict = None):
         request_body = self.read_file(request_file)
         return self.request_recorder.find_closest(
-            RequestRecord(path, method, request_body, query_params)).invokaction_count
+            RequestRecord(path, method, request_body, query_params)).invocation_count
 
     @staticmethod
     def read_file(file: str = None):

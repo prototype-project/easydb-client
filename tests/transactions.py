@@ -1,13 +1,14 @@
 from client import EasydbClient, SpaceDoesNotExistException, TransactionOperation, ElementField, OperationResult, \
-    Element, TransactionDoesNotExistException, BucketDoesNotExistException, ElementDoesNotExistException
-from client.client import UnknownOperationException
+    Element, TransactionDoesNotExistException, BucketDoesNotExistException, ElementDoesNotExistException,\
+    UnknownOperationException
+from client.domain import TransactionAbortedException
 from tests.base_test import HttpTest
 
 
 class TransactionTest(HttpTest):
     def setUp(self):
         super().setUp()
-        self.easydb_client = EasydbClient(self.server_url)
+        self.easydb_client = EasydbClient(self.server_url, retry_backoff_millis=1, retries_number=0)
 
     def before_test_should_begin_transaction(self):
         self.register_route('/api/v1/transactions/exampleSpace', 'POST', 201, response_file='transaction_created.json')
@@ -47,6 +48,15 @@ class TransactionTest(HttpTest):
     def before_test_should_throw_error_when_committing_not_existing_transaction(self):
         self.register_route('/api/v1/transactions/notExistingTransactionId/commit', 'POST', 404,
                             response_file='not_existing_transaction_response.json')
+
+    def before_test_should_throw_error_when_transaction_aborted(self):
+        self.register_route('/api/v1/transactions/exampleTransactionId/commit', 'POST', 200,
+                            response_file='transaction_aborted_response.json')
+
+    def before_test_should_throw_error_when_transaction_aborted_during_adding_operation(self):
+        self.register_route('/api/v1/transactions/exampleTransactionId/add-operation', 'POST', 200,
+                            request_file='add_read_operation_request.json',
+                            response_file='transaction_aborted_response.json')
 
     def test_should_begin_transaction(self):
         # when
@@ -149,3 +159,24 @@ class TransactionTest(HttpTest):
 
         # and
         self.assertEqual(self.verify('/api/v1/transactions/notExistingTransactionId/commit', 'POST'), 1)
+
+    def test_should_throw_error_when_transaction_aborted(self):
+        # expect
+        with self.assertRaises(TransactionAbortedException):
+            self.loop.run_until_complete(self.easydb_client.commit_transaction('exampleTransactionId'))
+
+        # and
+        self.assertEqual(self.verify('/api/v1/transactions/exampleTransactionId/commit', 'POST'), 1)
+
+    def test_should_throw_error_when_transaction_aborted_during_adding_operation(self):
+        # given
+        easydb_client = EasydbClient(self.server_url, retry_backoff_millis=1, retries_number=2)
+        operation = TransactionOperation('READ', 'users', 'exampleElementId')
+
+        # expect
+        with self.assertRaises(TransactionAbortedException):
+            self.loop.run_until_complete(easydb_client.add_operation('exampleTransactionId', operation))
+
+        # and
+        self.assertEqual(self.verify('/api/v1/transactions/exampleTransactionId/add-operation', 'POST',
+                                     request_file='add_read_operation_request.json'), 3)

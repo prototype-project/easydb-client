@@ -1,82 +1,25 @@
+from asyncio import sleep
+
 import aiohttp
-from typing import List
 
-
-class SpaceDoesNotExistException(Exception):
-    def __init__(self, space_name):
-        super().__init__()
-        self.space_name = space_name
-
-    def __str__(self):
-        return 'SpaceDoesNotExistException(space_name=%s)' % self.space_name
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class BucketDoesNotExistException(Exception):
-    def __init__(self, space_name, bucket_name, transaction_id=None):
-        super().__init__()
-        self.space_name = space_name
-        self.bucket_name = bucket_name
-        self.transaction_id = transaction_id
-
-    def __str__(self):
-        return 'BucketDoesNotExistException(space_name=%s, bucket_name=%s, transaction_id=%s)' % \
-               (self.space_name, self.bucket_name, self.transaction_id)
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class ElementDoesNotExistException(Exception):
-    def __init__(self, space_name, bucket_name, element_id, transaction_id=None):
-        super().__init__()
-        self.space_name = space_name
-        self.bucket_name = bucket_name
-        self.element_id = element_id
-        self.transaction_id = transaction_id
-
-    def __str__(self):
-        return 'ElementDoesNotExistException(space_name=%s, bucket_name=%s, element_id=%s, transaction_id=%s)' % \
-               (self.space_name, self.bucket_name, self.element_id, self.transaction_id)
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class TransactionDoesNotExistException(Exception):
-    def __init__(self, transaction_id: str):
-        self.transaction_id = transaction_id
-
-    def __str__(self):
-        return 'TransactionDoesNotExistException(transaction_id=%s)' % self.transaction_id
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class UnknownOperationException(Exception):
-    pass
-
-
-class UnknownError(Exception):
-    def __init__(self, msg):
-        super().__init__(msg)
-
-
-SPACE_DOES_NOT_EXIST = 'SPACE_DOES_NOT_EXIST'
-BUCKET_DOES_NOT_EXIST = 'BUCKET_DOES_NOT_EXIST'
-ELEMENT_DOES_NOT_EXIST = 'ELEMENT_DOES_NOT_EXIST'
-TRANSACTION_DOES_NOT_EXISTS = 'TRANSACTION_DOES_NOT_EXISTS'
-OPERATION_TYPES = ['CREATE', 'UPDATE', 'DELETE', 'READ']
+from client.domain import Space, ElementField, MultipleElementFields, Element, TransactionOperation, PaginatedElements, \
+    SPACE_DOES_NOT_EXIST, SpaceDoesNotExistException, BUCKET_DOES_NOT_EXIST, BucketDoesNotExistException, \
+    ELEMENT_DOES_NOT_EXIST, ElementDoesNotExistException, TRANSACTION_DOES_NOT_EXIST, TransactionDoesNotExistException, \
+    UnknownError, OPERATION_TYPES, UnknownOperationException, Transaction, OperationResult, FilterQuery, \
+    TRANSACTION_ABORTED, TransactionAbortedException
 
 
 class Request:
     def __init__(self, url: str, method: str, data: dict = None):
-        self.path = url
+        self.url = url
         self.method = method
         self.data = data
+
+    def __str__(self):
+        return "Request(url=%s, method=%s, data=%s)" % (self.url, self.method, self.data)
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class ResponseData:
@@ -84,149 +27,15 @@ class ResponseData:
         self.status = status
         self.data = data
 
-
-class Space:
-    def __init__(self, name):
-        self.name = name
-
-    def __repr__(self):
-        return 'Space(name=%s)' % self.name
-
     def __str__(self):
-        return self.__repr__()
-
-
-class ElementField:
-    def __init__(self, name, value):
-        self.name = name
-        self.value = value
-
-    def __eq__(self, other):
-        return self.name == other.name and \
-               self.value == other.value
-
-    def __hash__(self):
-        return hash((self.name, self.value))
-
-    def __str__(self):
-        return 'ElementField(name=%s, value=%s)' % (self.name, self.value)
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class MultipleElementFields:
-    def __init__(self, fields: List[ElementField] = None):
-        if not fields:
-            self.fields = []
-        else:
-            self.fields = fields
-
-    def add_field(self, name, value):
-        self.fields.append(ElementField(name, value))
-        return self
-
-    def __str__(self):
-        fields_str = ", ".join(['{%s = %s}' % (f.name, f.value) for f in self.fields])
-        return 'ElementFields(fields=[ %s ])' % fields_str
-
-    def __repr__(self):
-        return self.__str__()
-
-    def __eq__(self, other):
-        return self.fields == other.fields
-
-    def __hash__(self):
-        return hash(self.fields)
-
-    def as_json(self):
-        return {'fields': [dict((('name', f.name), ('value', f.value))) for f in self.fields]}
-
-
-class Element:
-    def __init__(self, identifier: str, fields: List[ElementField] = None):
-        self.identifier = identifier
-        self.element_fields = MultipleElementFields(fields)
-
-    def __eq__(self, other):
-        return self.identifier == other.identifier and \
-               self.element_fields == other.element_fields
-
-    def __hash__(self):
-        return hash((self.identifier, self.element_fields))
-
-    def __repr__(self):
-        fields_str = ", ".join(['{%s = %s}' % (f.name, f.value) for f in self.fields])
-        return 'Element(identifier=%s, fields=[ %s ])' % (
-            self.identifier, fields_str)
-
-    def __str__(self):
-        return self.__repr__()
-
-    @property
-    def fields(self):
-        return self.element_fields.fields
-
-    def add_field(self, name, value):
-        self.element_fields.add_field(name, value)
-        return self
-
-
-class Transaction:
-    def __init__(self, transaction_id):
-        self.transaction_id = transaction_id
-
-
-class FilterQuery:
-    def __init__(self, space_name, bucket_name, limit=20, offset=0):
-        self.space_name = space_name
-        self.bucket_name = bucket_name
-        self.limit = limit
-        self.offset = offset
-
-
-class PaginatedElements:
-    def __init__(self, elements: List[Element] = None, next_link: str = None):
-        self.elements = elements if elements else []
-        self.next_link = next_link
-
-    def __eq__(self, other):
-        return self.elements == other.elements and self.next_link == other.next_link
-
-    def __hash__(self):
-        return hash((self.elements, self.next_link))
-
-
-class TransactionOperation:
-    def __init__(self, type: str, bucket_name: str, element_id: str = None, fields: List[ElementField] = None):
-        self.type = type
-        self.bucket_name = bucket_name
-        self.element_id = element_id
-        self.fields = MultipleElementFields(fields)
-
-    def as_json(self):
-        json = {'type': self.type, 'bucketName': self.bucket_name, 'elementId': self.element_id}
-        json.update(self.fields.as_json())
-        return json
-
-
-class OperationResult:
-    def __init__(self, element: Element):
-        self.element = element
-
-    def is_empty(self):
-        return not self.element
-
-    def __eq__(self, other):
-        return self.element == other.element
-
-    def __hash__(self):
-        return hash(self.element)
+        return "ResponseData(status=%s, data=%s)" % (self.status, self.data)
 
 
 class EasydbClient:
-    def __init__(self, server_url: str):
+    def __init__(self, server_url: str, retry_backoff_millis=300, retries_number=3):
         self.server_url = server_url + "/api/v1"
+        self.retry_backoff_millis = retry_backoff_millis
+        self.retries_number = retries_number
 
     async def create_space(self):
         response = await self.perform_request(Request("%s/spaces" % self.server_url, 'POST'))
@@ -320,7 +129,7 @@ class EasydbClient:
     async def add_operation(self, transaction_id: str, operation: TransactionOperation):
         self.ensure_operation_constraints(operation)
 
-        response = await self.perform_request(
+        response = await self.add_operation_request_with_retry(
             Request('%s/transactions/%s/add-operation' % (self.server_url, transaction_id), 'POST',
                     operation.as_json()))
 
@@ -329,6 +138,7 @@ class EasydbClient:
                                  transaction_id=transaction_id)
         self.ensure_element_found(response, space_name=None, bucket_name=operation.bucket_name,
                                   element_id=operation.element_id, transaction_id=transaction_id)
+        self.ensure_transaction_not_aborted(response, transaction_id)
         self.ensure_status_2xx(response)
         return self.parse_operation_result(response.data)
 
@@ -337,6 +147,7 @@ class EasydbClient:
             Request('%s/transactions/%s/commit' % (self.server_url, transaction_id), 'POST'))
 
         self.ensure_transaction_found(response, transaction_id)
+        self.ensure_transaction_not_aborted(response, transaction_id)
         self.ensure_status_2xx(response)
 
     def _parse_filter_response(self, response):
@@ -345,11 +156,23 @@ class EasydbClient:
         elements = self.parse_multiple_elements(response.data['results'])
         return PaginatedElements(elements, next_link)
 
+    async def add_operation_request_with_retry(self, request: Request):
+        counter = 0
+        response = await EasydbClient.perform_request(request)
+        while counter < self.retries_number:
+            if response.status == 200 and response.data['errorCode'] == TRANSACTION_ABORTED:
+                await sleep(self.retry_backoff_millis / 1000)
+                response = await EasydbClient.perform_request(request)
+                counter += 1
+            else:
+                break
+        return response
+
     @staticmethod
     async def perform_request(request: Request):
         async with aiohttp.ClientSession() as session:
             if request.method in ['GET', 'POST', 'DELETE', 'PUT']:
-                async with session.request(request.method, request.path, json=request.data) as response:
+                async with session.request(request.method, request.url, json=request.data) as response:
                     return ResponseData(response.status, await response.json())
             else:
                 raise Exception("Incorrect request type")
@@ -371,8 +194,13 @@ class EasydbClient:
 
     @staticmethod
     def ensure_transaction_found(response, transaction_id):
-        if response.status == 404 and response.data and response.data['errorCode'] == TRANSACTION_DOES_NOT_EXISTS:
+        if response.status == 404 and response.data and response.data['errorCode'] == TRANSACTION_DOES_NOT_EXIST:
             raise TransactionDoesNotExistException(transaction_id)
+
+    @staticmethod
+    def ensure_transaction_not_aborted(response, transaction_id):
+        if response.status == 200 and response.data['errorCode'] == TRANSACTION_ABORTED:
+            raise TransactionAbortedException(transaction_id)
 
     @staticmethod
     def ensure_status_2xx(response):
