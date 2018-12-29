@@ -1,6 +1,6 @@
 from .base_test import HttpTest
 
-from client import EasydbClient, SpaceDoesNotExistException
+from easydb import EasydbClient, SpaceDoesNotExistException
 
 
 class SpaceTests(HttpTest):

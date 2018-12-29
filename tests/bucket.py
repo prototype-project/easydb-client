@@ -1,4 +1,4 @@
-from client import EasydbClient, MultipleElementFields, Element, SpaceDoesNotExistException, \
+from easydb import EasydbClient, MultipleElementFields, Element, SpaceDoesNotExistException, \
     BucketDoesNotExistException, ElementDoesNotExistException, FilterQuery
 from tests.base_test import HttpTest
 

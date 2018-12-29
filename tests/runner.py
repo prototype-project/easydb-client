@@ -1,8 +1,8 @@
 import unittest
 
-from .space import SpaceTests
-from .bucket import BucketTests
-from .transactions import TransactionTest
+from tests.space import SpaceTests
+from tests.bucket import BucketTests
+from tests.transactions import TransactionTest
 
 
 def suite():

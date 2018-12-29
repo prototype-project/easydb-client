@@ -1,5 +1,3 @@
-name = 'easydb-client'
-
 from .http import EasydbClient
 
 from .domain import SpaceDoesNotExistException, BucketDoesNotExistException, ElementDoesNotExistException, \

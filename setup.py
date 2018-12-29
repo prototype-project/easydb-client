@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="easydb-client",
+    name="easydb",
     version="0.0.1",
     author="Daniel Fąderski",
     author_email="daniel.faderski@gmail.com",
@@ -12,7 +12,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/prototype-project/easydb-client",
-    packages=['client'],
+    packages=['easydb'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

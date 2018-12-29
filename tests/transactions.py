@@ -1,7 +1,7 @@
-from client import EasydbClient, SpaceDoesNotExistException, TransactionOperation, ElementField, OperationResult, \
+from easydb import EasydbClient, SpaceDoesNotExistException, TransactionOperation, ElementField, OperationResult, \
     Element, TransactionDoesNotExistException, BucketDoesNotExistException, ElementDoesNotExistException,\
     UnknownOperationException
-from client.domain import TransactionAbortedException
+from easydb.domain import TransactionAbortedException
 from tests.base_test import HttpTest
 
 

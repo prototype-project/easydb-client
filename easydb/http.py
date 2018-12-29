@@ -2,7 +2,7 @@ from asyncio import sleep
 
 import aiohttp
 
-from client.domain import Space, ElementField, MultipleElementFields, Element, TransactionOperation, PaginatedElements, \
+from easydb.domain import Space, ElementField, MultipleElementFields, Element, TransactionOperation, PaginatedElements, \
     SPACE_DOES_NOT_EXIST, SpaceDoesNotExistException, BUCKET_DOES_NOT_EXIST, BucketDoesNotExistException, \
     ELEMENT_DOES_NOT_EXIST, ElementDoesNotExistException, TRANSACTION_DOES_NOT_EXIST, TransactionDoesNotExistException, \
     UnknownError, OPERATION_TYPES, UnknownOperationException, Transaction, OperationResult, FilterQuery, \
