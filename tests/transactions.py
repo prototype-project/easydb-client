@@ -74,7 +74,7 @@ class TransactionTest(HttpTest):
         # and
         self.assertEqual(self.verify('/api/v1/transactions/notExistingSpace', 'POST'), 1)
 
-    def test_should_add_operation_to_transaction_and_return_empty_result(self):
+    def test_should_add_read_operation_to_transaction_and_return_empty_result(self):
         # given
         operation = TransactionOperation('UPDATE', 'users', 'exampleElementId', [ElementField('username', 'Mirek')])
 
@@ -125,7 +125,7 @@ class TransactionTest(HttpTest):
         self.assertEqual(self.verify('/api/v1/transactions/exampleTransactionId/add-operation', 'POST',
                                      request_file='add_read_operation_not_existing_bucket_request.json'), 1)
 
-    def test_should_throw_error_when_adding_operation_to_not_existing_element(self):
+    def test_should_throw_error_when_adding_operation_for_not_existing_element(self):
         # given
         operation = TransactionOperation('READ', 'users', 'notExistingElement')
 

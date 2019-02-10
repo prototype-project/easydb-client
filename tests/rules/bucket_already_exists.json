@@ -1,0 +1,5 @@
+{
+  "errorCode": "BUCKET_ALREADY_EXISTS",
+  "status": "BAD_REQUEST",
+  "message": "Bucket already exists"
+}

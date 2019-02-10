@@ -1,5 +1,5 @@
 from easydb import EasydbClient, MultipleElementFields, Element, SpaceDoesNotExistException, \
-    BucketDoesNotExistException, ElementDoesNotExistException, FilterQuery
+    BucketDoesNotExistException, ElementDoesNotExistException, FilterQuery, BucketAlreadyExistsException
 from tests.base_test import HttpTest
 
 
@@ -9,83 +9,119 @@ class BucketTests(HttpTest):
         self.easydb_client = EasydbClient(self.server_url)
 
     def before_test_should_add_element_to_bucket(self):
-        self.register_route('/api/v1/exampleSpace/users', 'POST', 201, 'element_request.json',
+        self.register_route('/api/v1/spaces/exampleSpace/buckets/users/elements', 'POST', 201, 'element_request.json',
                             'element_response.json')
 
     def before_test_should_throw_error_when_adding_element_in_not_existing_space(self):
-        self.register_route('/api/v1/notExistingSpace/users', 'POST', 404, 'element_request.json',
+        self.register_route('/api/v1/spaces/notExistingSpace/buckets/users/elements', 'POST', 404, 'element_request.json',
                             'not_existing_space_response.json')
 
+    def before_test_should_throw_error_when_adding_element_in_not_existing_bucket(self):
+        self.register_route(self.build_element_url('exampleSpace', 'notExistingBucket'), 'POST', 404, 'element_request.json',
+                            'not_existing_bucket_response.json')
+
+    def before_test_should_create_bucket(self):
+        self.register_route(self.build_bucket_url("exampleSpace"), "POST", 201, 'bucket.json')
+
+    def before_test_should_throw_error_when_creating_bucket_in_not_existing_space(self):
+        self.register_route(self.build_bucket_url('notExistingSpace'), 'POST', 404, 'bucket.json', 'not_existing_space_response.json')
+
+    def before_test_should_throw_error_when_creating_already_existing_bucket(self):
+        self.register_route(self.build_bucket_url('exampleSpace'), 'POST', 400, 'bucket.json', 'bucket_already_exists.json')
+
     def before_test_should_delete_bucket(self):
-        self.register_route('/api/v1/exampleSpace/users', 'DELETE', 200)
+        self.register_route('/api/v1/spaces/exampleSpace/buckets/users', 'DELETE', 200)
 
     def before_test_should_throw_error_when_deleting_bucket_in_not_existing_space(self):
-        self.register_route('/api/v1/notExistingSpace/users', 'DELETE', 404,
+        self.register_route('/api/v1/spaces/notExistingSpace/buckets/users', 'DELETE', 404,
                             response_file='not_existing_space_response.json')
 
     def before_test_should_throw_error_when_deleting_not_existing_bucket(self):
-        self.register_route('/api/v1/exampleSpace/notExistingBucket', 'DELETE', 404,
+        self.register_route('/api/v1/spaces/exampleSpace/buckets/notExistingBucket', 'DELETE', 404,
                             response_file='not_existing_bucket_response.json')
 
     def before_test_should_delete_element(self):
-        self.register_route('/api/v1/exampleSpace/users/elementId', 'DELETE', 200)
+        self.register_route('/api/v1/spaces/exampleSpace/buckets/users/elements/elementId', 'DELETE', 200)
 
     def before_test_should_throw_error_when_deleting_element_from_not_existing_space(self):
-        self.register_route('/api/v1/notExistingSpace/users/elementId', 'DELETE', 404,
+        self.register_route('/api/v1/spaces/notExistingSpace/buckets/users/elements/elementId', 'DELETE', 404,
                             response_file='not_existing_space_response.json')
 
     def before_test_should_throw_error_when_deleting_element_from_not_existing_bucket(self):
-        self.register_route('/api/v1/exampleSpace/notExistingBucket/elementId', 'DELETE', 404,
+        self.register_route('/api/v1/spaces/exampleSpace/buckets/notExistingBucket/elements/elementId', 'DELETE', 404,
                             response_file='not_existing_bucket_response.json')
 
     def before_test_should_throw_error_when_deleting_not_existing_element(self):
-        self.register_route('/api/v1/exampleSpace/users/notExistingElement', 'DELETE', 404,
+        self.register_route('/api/v1/spaces/exampleSpace/buckets/users/elements/notExistingElement', 'DELETE', 404,
                             response_file='not_existing_element_response.json')
 
     def before_test_should_update_element(self):
-        self.register_route('/api/v1/exampleSpace/users/elementId', 'PUT', 200, request_file='element_request.json')
+        self.register_route('/api/v1/spaces/exampleSpace/buckets/users/elements/elementId', 'PUT', 200, request_file='element_request.json')
 
     def before_test_should_throw_error_when_updating_element_from_not_existing_space(self):
-        self.register_route('/api/v1/notExistingSpace/users/elementId', 'PUT', 404, request_file='element_request.json',
+        self.register_route('/api/v1/spaces/notExistingSpace/buckets/users/elements/elementId', 'PUT', 404, request_file='element_request.json',
                             response_file='not_existing_space_response.json')
 
     def before_test_should_throw_error_when_updating_element_from_not_existing_bucket(self):
-        self.register_route('/api/v1/exampleSpace/notExistingBucket/elementId', 'PUT', 404,
+        self.register_route('/api/v1/spaces/exampleSpace/buckets/notExistingBucket/elements/elementId', 'PUT', 404,
                             request_file='element_request.json', response_file='not_existing_bucket_response.json')
 
     def before_test_should_throw_error_when_updating_not_existing_element(self):
-        self.register_route('/api/v1/exampleSpace/users/notExistingElement', 'PUT', 404,
+        self.register_route('/api/v1/spaces/exampleSpace/buckets/users/elements/notExistingElement', 'PUT', 404,
                             request_file='element_request.json', response_file='not_existing_element_response.json')
 
     def before_test_should_get_element(self):
-        self.register_route('/api/v1/exampleSpace/users/elementId', 'GET', 200, response_file='element_response.json')
+        self.register_route('/api/v1/spaces/exampleSpace/buckets/users/elements/elementId', 'GET', 200, response_file='element_response.json')
 
     def before_test_should_throw_error_when_getting_element_from_not_existing_space(self):
-        self.register_route('/api/v1/notExistingSpace/users/elementId', 'GET', 404,
+        self.register_route('/api/v1/spaces/notExistingSpace/buckets/users/elements/elementId', 'GET', 404,
                             response_file='not_existing_space_response.json')
 
     def before_test_should_throw_error_when_getting_element_from_not_existing_bucket(self):
-        self.register_route('/api/v1/exampleSpace/notExistingBucket/elementId', 'GET', 404,
+        self.register_route('/api/v1/spaces/exampleSpace/buckets/notExistingBucket/elements/elementId', 'GET', 404,
                             response_file='not_existing_bucket_response.json')
 
     def before_test_should_throw_error_when_getting_not_existing_element(self):
-        self.register_route('/api/v1/exampleSpace/users/notExistingElement', 'GET', 404,
+        self.register_route('/api/v1/spaces/exampleSpace/buckets/users/elements/notExistingElement', 'GET', 404,
                             response_file='not_existing_element_response.json')
 
     def before_test_should_throw_error_when_filtering_elements_from_not_existing_space(self):
-        self.register_route('/api/v1/notExistingSpace/users', 'GET', 404,
+        self.register_route('/api/v1/spaces/notExistingSpace/buckets/users/elements', 'GET', 404,
                             response_file='not_existing_space_response.json', query_params={'limit': '20', 'offset': '0'})
 
     def before_test_should_throw_error_when_filtering_elements_from_not_existing_bucket(self):
-        self.register_route('/api/v1/exampleSpace/notExistingBucket', 'GET', 404,
+        self.register_route('/api/v1/spaces/exampleSpace/buckets/notExistingBucket/elements', 'GET', 404,
                             response_file='not_existing_bucket_response.json', query_params={'limit': '20', 'offset': '0'})
 
     def before_test_should_filter_elements(self):
-        self.register_route('/api/v1/exampleSpace/users', 'GET', 200,
+        self.register_route('/api/v1/spaces/exampleSpace/buckets/users/elements', 'GET', 200,
                             response_file='elements_paginated_response1.json', query_params={'limit': '2', 'offset': '0' })
 
-        self.register_route('/api/v1/exampleSpace/users', 'GET', 200,
+        self.register_route('/api/v1/spaces/exampleSpace/buckets/users/elements', 'GET', 200,
                             response_file='elements_paginated_response2.json', query_params={'limit': '2', 'offset': '2' })
+
+    def test_should_create_bucket(self):
+        # when
+        self.loop.run_until_complete(self.easydb_client.create_bucket('exampleSpace', 'users'))
+
+        # then
+        self.assertEqual(self.verify(self.build_bucket_url('exampleSpace'), 'POST', 'bucket.json'), 1)
+
+    def test_should_throw_error_when_creating_bucket_in_not_existing_space(self):
+        # expect
+        with self.assertRaises(SpaceDoesNotExistException):
+            self.loop.run_until_complete(self.easydb_client.create_bucket('notExistingSpace', 'users'))
+
+        # and
+        self.assertEqual(self.verify(self.build_bucket_url('notExistingSpace'), 'POST', 'bucket.json'), 1)
+
+    def test_should_throw_error_when_creating_already_existing_bucket(self):
+        # expect
+        with self.assertRaises(BucketAlreadyExistsException):
+            self.loop.run_until_complete(self.easydb_client.create_bucket('exampleSpace', 'users'))
+
+        # and
+        self.assertEqual(self.verify(self.build_bucket_url('exampleSpace'), 'POST', 'bucket.json'), 1)
 
     def test_should_add_element_to_bucket(self):
         # when
@@ -96,7 +132,7 @@ class BucketTests(HttpTest):
                                                                    .add_field('lastName', 'Smith')))
 
         # then
-        self.assertEqual(self.verify('/api/v1/exampleSpace/users', 'POST', 'element_request.json'), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/exampleSpace/buckets/users/elements', 'POST', 'element_request.json'), 1)
         self.assertEqual(created_element,
                          Element('elementId')
                          .add_field('firstName', 'John')
@@ -112,14 +148,26 @@ class BucketTests(HttpTest):
                                                      .add_field('lastName', 'Smith')))
 
         # and
-        self.assertEqual(self.verify('/api/v1/notExistingSpace/users', 'POST', 'element_request.json'), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/notExistingSpace/buckets/users/elements', 'POST', 'element_request.json'), 1)
+
+    def test_should_throw_error_when_adding_element_in_not_existing_bucket(self):
+        # expect
+        with self.assertRaises(BucketDoesNotExistException):
+            self.loop.run_until_complete(self.easydb_client. \
+                                         add_element('exampleSpace', 'notExistingBucket',
+                                                     MultipleElementFields()
+                                                     .add_field('firstName', 'John')
+                                                     .add_field('lastName', 'Smith')))
+
+        # and
+        self.assertEqual(self.verify(self.build_element_url('exampleSpace', 'notExistingBucket'), 'POST', 'element_request.json'), 1)
 
     def test_should_delete_bucket(self):
         # when
         self.loop.run_until_complete(self.easydb_client.delete_bucket('exampleSpace', 'users'))
 
         # then
-        self.assertEqual(self.verify('/api/v1/exampleSpace/users', 'DELETE'), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/exampleSpace/buckets/users', 'DELETE'), 1)
 
     def test_should_throw_error_when_deleting_bucket_in_not_existing_space(self):
         # except
@@ -127,7 +175,7 @@ class BucketTests(HttpTest):
             self.loop.run_until_complete(self.easydb_client.delete_bucket('notExistingSpace', 'users'))
 
         # and
-        self.assertEqual(self.verify('/api/v1/notExistingSpace/users', 'DELETE'), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/notExistingSpace/buckets/users', 'DELETE'), 1)
 
     def test_should_throw_error_when_deleting_not_existing_bucket(self):
         # except
@@ -135,14 +183,14 @@ class BucketTests(HttpTest):
             self.loop.run_until_complete(self.easydb_client.delete_bucket('exampleSpace', 'notExistingBucket'))
 
         # and
-        self.assertEqual(self.verify('/api/v1/exampleSpace/notExistingBucket', 'DELETE'), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/exampleSpace/buckets/notExistingBucket', 'DELETE'), 1)
 
     def test_should_delete_element(self):
         # when
         self.loop.run_until_complete(self.easydb_client.delete_element('exampleSpace', 'users', 'elementId'))
 
         # then
-        self.assertEqual(self.verify('/api/v1/exampleSpace/users/elementId', 'DELETE'), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/exampleSpace/buckets/users/elements/elementId', 'DELETE'), 1)
 
     def test_should_throw_error_when_deleting_element_from_not_existing_space(self):
         # expect
@@ -150,7 +198,7 @@ class BucketTests(HttpTest):
             self.loop.run_until_complete(self.easydb_client.delete_element('notExistingSpace', 'users', 'elementId'))
 
         # and
-        self.assertEqual(self.verify('/api/v1/notExistingSpace/users/elementId', 'DELETE'), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/notExistingSpace/buckets/users/elements/elementId', 'DELETE'), 1)
 
     def test_should_throw_error_when_deleting_element_from_not_existing_bucket(self):
         # expect
@@ -159,7 +207,7 @@ class BucketTests(HttpTest):
                 self.easydb_client.delete_element('exampleSpace', 'notExistingBucket', 'elementId'))
 
         # and
-        self.assertEqual(self.verify('/api/v1/exampleSpace/notExistingBucket/elementId', 'DELETE'), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/exampleSpace/buckets/notExistingBucket/elements/elementId', 'DELETE'), 1)
 
     def test_should_throw_error_when_deleting_not_existing_element(self):
         # expect
@@ -168,7 +216,7 @@ class BucketTests(HttpTest):
                 self.easydb_client.delete_element('exampleSpace', 'users', 'notExistingElement'))
 
         # and
-        self.assertEqual(self.verify('/api/v1/exampleSpace/users/notExistingElement', 'DELETE'), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/exampleSpace/buckets/users/elements/notExistingElement', 'DELETE'), 1)
 
     def test_should_update_element(self):
         # when
@@ -177,7 +225,7 @@ class BucketTests(HttpTest):
                                                                        .add_field('firstName', 'John')
                                                                        .add_field('lastName', 'Smith')))
         # then
-        self.assertEqual(self.verify('/api/v1/exampleSpace/users/elementId', 'PUT', 'element_request.json'), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/exampleSpace/buckets/users/elements/elementId', 'PUT', 'element_request.json'), 1)
 
     def test_should_throw_error_when_updating_element_from_not_existing_space(self):
         # expect
@@ -189,7 +237,7 @@ class BucketTests(HttpTest):
                                                   .add_field('lastName', 'Smith')))
 
         # and
-        self.assertEqual(self.verify('/api/v1/notExistingSpace/users/elementId', 'PUT', 'element_request.json'), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/notExistingSpace/buckets/users/elements/elementId', 'PUT', 'element_request.json'), 1)
 
     def test_should_throw_error_when_updating_element_from_not_existing_bucket(self):
         # expect
@@ -202,7 +250,7 @@ class BucketTests(HttpTest):
 
         # and
         self.assertEqual(
-            self.verify('/api/v1/exampleSpace/notExistingBucket/elementId', 'PUT', 'element_request.json'), 1)
+            self.verify('/api/v1/spaces/exampleSpace/buckets/notExistingBucket/elements/elementId', 'PUT', 'element_request.json'), 1)
 
     def test_should_throw_error_when_updating_not_existing_element(self):
         # expect
@@ -214,7 +262,7 @@ class BucketTests(HttpTest):
                                                   .add_field('lastName', 'Smith')))
 
         # and
-        self.assertEqual(self.verify('/api/v1/exampleSpace/users/notExistingElement', 'PUT', 'element_request.json'), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/exampleSpace/buckets/users/elements/notExistingElement', 'PUT', 'element_request.json'), 1)
 
     def test_should_get_element(self):
         # when
@@ -222,7 +270,7 @@ class BucketTests(HttpTest):
 
         # then
         self.assertEqual(element, Element('elementId').add_field('firstName', 'John').add_field('lastName', 'Smith'))
-        self.assertEqual(self.verify('/api/v1/exampleSpace/users/elementId', 'GET'), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/exampleSpace/buckets/users/elements/elementId', 'GET'), 1)
 
     def test_should_throw_error_when_getting_element_from_not_existing_space(self):
         # expect
@@ -231,7 +279,7 @@ class BucketTests(HttpTest):
                 self.easydb_client.get_element('notExistingSpace', 'users', 'elementId'))
 
         # and
-        self.assertEqual(self.verify('/api/v1/notExistingSpace/users/elementId', 'GET'), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/notExistingSpace/buckets/users/elements/elementId', 'GET'), 1)
 
     def test_should_throw_error_when_getting_element_from_not_existing_bucket(self):
         # expect
@@ -240,7 +288,7 @@ class BucketTests(HttpTest):
                 self.easydb_client.get_element('exampleSpace', 'notExistingBucket', 'elementId'))
 
         # and
-        self.assertEqual(self.verify('/api/v1/exampleSpace/notExistingBucket/elementId', 'GET'), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/exampleSpace/buckets/notExistingBucket/elements/elementId', 'GET'), 1)
 
     def test_should_throw_error_when_getting_not_existing_element(self):
         # expect
@@ -249,7 +297,7 @@ class BucketTests(HttpTest):
                 self.easydb_client.get_element('exampleSpace', 'users', 'notExistingElement'))
 
         # and
-        self.assertEqual(self.verify('/api/v1/exampleSpace/users/notExistingElement', 'GET'), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/exampleSpace/buckets/users/elements/notExistingElement', 'GET'), 1)
 
     def test_should_filter_elements(self):
         # when
@@ -263,7 +311,7 @@ class BucketTests(HttpTest):
                                   .add_field('lastName', 'Bing'),
                           Element('id2').add_field('firstName', 'Joe').add_field('lastName', 'Tribbiani')])
 
-        self.assertEqual(self.verify('/api/v1/exampleSpace/users', 'GET', query_params={'limit': '2', 'offset': '0'}), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/exampleSpace/buckets/users/elements', 'GET', query_params={'limit': '2', 'offset': '0'}), 1)
 
         # and when
         paginated_elements = self.loop.run_until_complete(
@@ -274,7 +322,7 @@ class BucketTests(HttpTest):
                          [Element('id3').add_field('firstName', 'Monica')
                                   .add_field('lastName', 'Geller')])
 
-        self.assertEqual(self.verify('/api/v1/exampleSpace/users', 'GET', query_params={'limit': '2', 'offset': '0'}), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/exampleSpace/buckets/users/elements', 'GET', query_params={'limit': '2', 'offset': '0'}), 1)
 
     def test_should_throw_error_when_filtering_elements_from_not_existing_space(self):
         # expect
@@ -283,7 +331,7 @@ class BucketTests(HttpTest):
                 self.easydb_client.filter_elements_by_query(FilterQuery('notExistingSpace', 'users')))
 
         # and
-        self.assertEqual(self.verify('/api/v1/notExistingSpace/users', 'GET', query_params={'limit': '20', 'offset': '0'}), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/notExistingSpace/buckets/users/elements', 'GET', query_params={'limit': '20', 'offset': '0'}), 1)
 
     def test_should_throw_error_when_filtering_elements_from_not_existing_bucket(self):
         # expect
@@ -292,4 +340,17 @@ class BucketTests(HttpTest):
                 self.easydb_client.filter_elements_by_query(FilterQuery('exampleSpace', 'notExistingBucket')))
 
         # and
-        self.assertEqual(self.verify('/api/v1/exampleSpace/notExistingBucket', 'GET', query_params={'limit': '20', 'offset': '0'}), 1)
+        self.assertEqual(self.verify('/api/v1/spaces/exampleSpace/buckets/notExistingBucket/elements', 'GET', query_params={'limit': '20', 'offset': '0'}), 1)
+
+    def build_space_url(self, space_name=""):
+        return self.without_ending_slash('/api/v1/spaces/%s' % space_name)
+
+    def build_bucket_url(self, space_name, bucket_name=""):
+        return self.without_ending_slash('%s/buckets/%s' % (self.build_space_url(space_name), bucket_name))
+
+    def build_element_url(self, space_name, bucket_name, element_name=""):
+        return self.without_ending_slash('%s/elements/%s' % (self.build_bucket_url(space_name, bucket_name), element_name))
+
+    @staticmethod
+    def without_ending_slash(s: str):
+        return s.rstrip('/')

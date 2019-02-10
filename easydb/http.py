@@ -2,11 +2,12 @@ from asyncio import sleep
 
 import aiohttp
 
-from easydb.domain import Space, ElementField, MultipleElementFields, Element, TransactionOperation, PaginatedElements, \
+from easydb.domain import Space, Bucket, ElementField, MultipleElementFields, Element, TransactionOperation, \
+    PaginatedElements, \
     SPACE_DOES_NOT_EXIST, SpaceDoesNotExistException, BUCKET_DOES_NOT_EXIST, BucketDoesNotExistException, \
     ELEMENT_DOES_NOT_EXIST, ElementDoesNotExistException, TRANSACTION_DOES_NOT_EXIST, TransactionDoesNotExistException, \
     UnknownError, OPERATION_TYPES, UnknownOperationException, Transaction, OperationResult, FilterQuery, \
-    TRANSACTION_ABORTED, TransactionAbortedException
+    TRANSACTION_ABORTED, TransactionAbortedException, BUCKET_ALREADY_EXISTS, BucketAlreadyExistsException
 
 
 class Request:
@@ -56,9 +57,16 @@ class EasydbClient:
         self.ensure_status_2xx(response)
         return Space(response.data['spaceName'])
 
+    async def create_bucket(self, space_name, bucket_name):
+        response = await self.perform_request(Request(self.build_bucket_url(space_name), 'POST', data=Bucket(bucket_name).as_json()))
+
+        self.ensure_space_found(response, space_name)
+        self.ensure_bucket_not_exists(response, space_name, bucket_name)
+        self.ensure_status_2xx(response)
+
     async def add_element(self, space_name, bucket_name, element_fields: MultipleElementFields):
         response = await self.perform_request(
-            Request("%s/%s/%s" % (self.server_url, space_name, bucket_name), 'POST', data=element_fields.as_json()))
+            Request("%s/spaces/%s/buckets/%s/elements" % (self.server_url, space_name, bucket_name), 'POST', data=element_fields.as_json()))
 
         self.ensure_space_found(response, space_name)
         self.ensure_bucket_found(response, space_name, bucket_name)
@@ -68,7 +76,7 @@ class EasydbClient:
 
     async def delete_bucket(self, space_name, bucket_name):
         response = await self.perform_request(
-            Request('%s/%s/%s' % (self.server_url, space_name, bucket_name), 'DELETE'))
+            Request('%s/spaces/%s/buckets/%s' % (self.server_url, space_name, bucket_name), 'DELETE'))
 
         self.ensure_space_found(response, space_name)
         self.ensure_bucket_found(response, space_name, bucket_name)
@@ -76,7 +84,7 @@ class EasydbClient:
 
     async def delete_element(self, space_name, bucket_name, element_id):
         response = await self.perform_request(
-            Request('%s/%s/%s/%s' % (self.server_url, space_name, bucket_name, element_id), 'DELETE'))
+            Request('%s/spaces/%s/buckets/%s/elements/%s' % (self.server_url, space_name, bucket_name, element_id), 'DELETE'))
 
         self.ensure_space_found(response, space_name)
         self.ensure_bucket_found(response, space_name, bucket_name)
@@ -85,7 +93,7 @@ class EasydbClient:
 
     async def update_element(self, space_name, bucket_name, element_id, element_fields: MultipleElementFields):
         response = await self.perform_request(
-            Request('%s/%s/%s/%s' % (self.server_url, space_name, bucket_name, element_id), 'PUT',
+            Request('%s/spaces/%s/buckets/%s/elements/%s' % (self.server_url, space_name, bucket_name, element_id), 'PUT',
                     data=element_fields.as_json()))
 
         self.ensure_space_found(response, space_name)
@@ -95,7 +103,7 @@ class EasydbClient:
 
     async def get_element(self, space_name, bucket_name, element_id):
         response = await self.perform_request(
-            Request('%s/%s/%s/%s' % (self.server_url, space_name, bucket_name, element_id), 'GET'))
+            Request('%s/spaces/%s/buckets/%s/elements/%s' % (self.server_url, space_name, bucket_name, element_id), 'GET'))
 
         self.ensure_space_found(response, space_name)
         self.ensure_bucket_found(response, space_name, bucket_name)
@@ -107,7 +115,7 @@ class EasydbClient:
 
     async def filter_elements_by_query(self, query: FilterQuery):
         response = await self.perform_request(
-            Request('%s/%s/%s?limit=%d&offset=%d' %
+            Request('%s/spaces/%s/buckets/%s/elements?limit=%d&offset=%d' %
                     (self.server_url, query.space_name, query.bucket_name, query.limit, query.offset), 'GET'))
 
         self.ensure_space_found(response, query.space_name)
@@ -173,6 +181,8 @@ class EasydbClient:
         async with aiohttp.ClientSession() as session:
             if request.method in ['GET', 'POST', 'DELETE', 'PUT']:
                 async with session.request(request.method, request.url, json=request.data) as response:
+                    if EasydbClient.is_empty_response(response):
+                        return ResponseData(response.status, {})
                     return ResponseData(response.status, await response.json())
             else:
                 raise Exception("Incorrect request type")
@@ -203,6 +213,11 @@ class EasydbClient:
             raise TransactionAbortedException(transaction_id)
 
     @staticmethod
+    def ensure_bucket_not_exists(response, space_name, bucket_name):
+        if response.status == 400 and response.data and response.data['errorCode'] == BUCKET_ALREADY_EXISTS:
+            raise BucketAlreadyExistsException(space_name, bucket_name)
+
+    @staticmethod
     def ensure_status_2xx(response):
         if response.status >= 300 or response.status < 200:
             raise UnknownError("Unexpected status code: %s" % response.status)
@@ -231,3 +246,20 @@ class EasydbClient:
     @staticmethod
     def parse_operation_result(data: dict):
         return OperationResult(EasydbClient.parse_single_element(data['element']) if data['element'] else None)
+
+    @staticmethod
+    def is_empty_response(response: aiohttp.ClientResponse):
+        return response.content_length is not None and response.content_length == 0
+
+    def build_space_url(self, space_name=""):
+        return self.without_ending_slash('%s/spaces/%s' % (self.server_url, space_name))
+
+    def build_bucket_url(self, space_name, bucket_name=""):
+        return self.without_ending_slash('%s/buckets/%s' % (self.build_space_url(space_name), bucket_name))
+
+    def build_element_url(self, space_name, bucket_name, element_name=""):
+        return self.without_ending_slash('%s/elements/%s' % (self.build_bucket_url(space_name, bucket_name), element_name))
+
+    @staticmethod
+    def without_ending_slash(s: str):
+        return s.rstrip('/')

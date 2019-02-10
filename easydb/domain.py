@@ -28,6 +28,20 @@ class BucketDoesNotExistException(Exception):
         return self.__str__()
 
 
+class BucketAlreadyExistsException(Exception):
+    def __init__(self, space_name, bucket_name):
+        super().__init__()
+        self.space_name = space_name
+        self.bucket_name = bucket_name
+
+    def __str__(self):
+        return 'BucketAlreadyExistsException(space_name=%s, bucket_name=%s)' % \
+               (self.space_name, self.bucket_name)
+
+    def __repr__(self):
+        return self.__str__()
+
+
 class ElementDoesNotExistException(Exception):
     def __init__(self, space_name, bucket_name, element_id, transaction_id=None):
         super().__init__()
@@ -74,6 +88,7 @@ class UnknownError(Exception):
 
 SPACE_DOES_NOT_EXIST = 'SPACE_DOES_NOT_EXIST'
 BUCKET_DOES_NOT_EXIST = 'BUCKET_DOES_NOT_EXIST'
+BUCKET_ALREADY_EXISTS = 'BUCKET_ALREADY_EXISTS'
 ELEMENT_DOES_NOT_EXIST = 'ELEMENT_DOES_NOT_EXIST'
 TRANSACTION_DOES_NOT_EXIST = 'TRANSACTION_DOES_NOT_EXIST'
 OPERATION_TYPES = ['CREATE', 'UPDATE', 'DELETE', 'READ']
@@ -90,6 +105,19 @@ class Space:
     def __str__(self):
         return self.__repr__()
 
+
+class Bucket:
+    def __init__(self, name):
+        self.name = name
+
+    def __repr__(self):
+        return 'Space(name=%s)' % self.name
+
+    def __str__(self):
+        return self.__repr__()
+
+    def as_json(self):
+        return {'bucketName': self.name}
 
 class ElementField:
     def __init__(self, name, value):
