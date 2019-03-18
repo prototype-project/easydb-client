@@ -19,7 +19,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     install_requires=[
-        'aiohttp==3.4.4',
+        'aiohttp==3.5.4',
         'async-timeout==3.0.1',
         'attrs==18.2.0',
         'chardet==3.0.4',

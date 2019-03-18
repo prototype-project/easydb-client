@@ -17,7 +17,7 @@ class TransactionTest(HttpTest):
         self.register_route('/api/v1/transactions/notExistingSpace', 'POST', 404,
                             response_file='not_existing_space_response.json')
 
-    def before_test_should_add_operation_to_transaction_and_return_empty_result(self):
+    def before_test_should_add_update_operation_to_transaction_and_return_empty_result(self):
         self.register_route('/api/v1/transactions/exampleTransactionId/add-operation', 'POST', 201,
                             request_file='add_update_operation_request.json',
                             response_file='add_update_operation_response.json')
@@ -37,7 +37,7 @@ class TransactionTest(HttpTest):
                             request_file='add_read_operation_not_existing_bucket_request.json',
                             response_file='not_existing_bucket_response.json')
 
-    def before_test_should_throw_error_when_adding_operation_to_not_existing_element(self):
+    def before_test_should_throw_error_when_adding_operation_for_not_existing_element(self):
         self.register_route('/api/v1/transactions/exampleTransactionId/add-operation', 'POST', 404,
                             request_file='add_read_operation_not_existing_element_request.json',
                             response_file='not_existing_element_response.json')
@@ -74,7 +74,7 @@ class TransactionTest(HttpTest):
         # and
         self.assertEqual(self.verify('/api/v1/transactions/notExistingSpace', 'POST'), 1)
 
-    def test_should_add_read_operation_to_transaction_and_return_empty_result(self):
+    def test_should_add_update_operation_to_transaction_and_return_empty_result(self):
         # given
         operation = TransactionOperation('UPDATE', 'users', 'exampleElementId', [ElementField('username', 'Mirek')])
 
