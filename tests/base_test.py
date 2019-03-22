@@ -82,7 +82,7 @@ class RequestMappingRecorder:
 
 class HttpTest(AioHTTPTestCase):
     rules_path = os.path.join(os.path.dirname(__file__), 'rules')
-    server_port = 8000
+    server_port = 9000
     server_url = 'http://localhost:' + str(server_port)
 
     def setUp(self):

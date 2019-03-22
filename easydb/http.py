@@ -58,7 +58,8 @@ class EasydbClient:
         return Space(response.data['spaceName'])
 
     async def create_bucket(self, space_name, bucket_name):
-        response = await self._perform_request(Request(self._build_bucket_url(space_name), 'POST', data=Bucket(bucket_name).as_json()))
+        response = await self._perform_request(
+            Request(self._build_bucket_url(space_name), 'POST', data=Bucket(bucket_name)._as_json()))
 
         self._ensure_space_found(response, space_name)
         self._ensure_bucket_not_exists(response, space_name, bucket_name)
@@ -66,7 +67,8 @@ class EasydbClient:
 
     async def add_element(self, space_name, bucket_name, element_fields: MultipleElementFields):
         response = await self._perform_request(
-            Request("%s/spaces/%s/buckets/%s/elements" % (self.server_url, space_name, bucket_name), 'POST', data=element_fields.as_json()))
+            Request("%s/spaces/%s/buckets/%s/elements" % (self.server_url, space_name, bucket_name), 'POST',
+                    data=element_fields._as_json()))
 
         self._ensure_space_found(response, space_name)
         self._ensure_bucket_found(response, space_name, bucket_name)
@@ -84,7 +86,8 @@ class EasydbClient:
 
     async def delete_element(self, space_name, bucket_name, element_id):
         response = await self._perform_request(
-            Request('%s/spaces/%s/buckets/%s/elements/%s' % (self.server_url, space_name, bucket_name, element_id), 'DELETE'))
+            Request('%s/spaces/%s/buckets/%s/elements/%s' % (self.server_url, space_name, bucket_name, element_id),
+                    'DELETE'))
 
         self._ensure_space_found(response, space_name)
         self._ensure_bucket_found(response, space_name, bucket_name)
@@ -93,8 +96,9 @@ class EasydbClient:
 
     async def update_element(self, space_name, bucket_name, element_id, element_fields: MultipleElementFields):
         response = await self._perform_request(
-            Request('%s/spaces/%s/buckets/%s/elements/%s' % (self.server_url, space_name, bucket_name, element_id), 'PUT',
-                    data=element_fields.as_json()))
+            Request('%s/spaces/%s/buckets/%s/elements/%s' % (self.server_url, space_name, bucket_name, element_id),
+                    'PUT',
+                    data=element_fields._as_json()))
 
         self._ensure_space_found(response, space_name)
         self._ensure_bucket_found(response, space_name, bucket_name)
@@ -103,7 +107,8 @@ class EasydbClient:
 
     async def get_element(self, space_name, bucket_name, element_id):
         response = await self._perform_request(
-            Request('%s/spaces/%s/buckets/%s/elements/%s' % (self.server_url, space_name, bucket_name, element_id), 'GET'))
+            Request('%s/spaces/%s/buckets/%s/elements/%s' % (self.server_url, space_name, bucket_name, element_id),
+                    'GET'))
 
         self._ensure_space_found(response, space_name)
         self._ensure_bucket_found(response, space_name, bucket_name)
@@ -137,9 +142,11 @@ class EasydbClient:
     async def add_operation(self, transaction_id: str, operation: TransactionOperation):
         self._ensure_operation_constraints(operation)
 
-        response = await self._add_operation_request_with_retry(
-            Request('%s/transactions/%s/add-operation' % (self.server_url, transaction_id), 'POST',
-                    operation.as_json()))
+        # response = await self._add_operation_request_with_retry(
+        #     Request('%s/transactions/%s/add-operation' % (self.server_url, transaction_id), 'POST',
+        #             operation._as_json()))
+        response = await self._perform_request(
+            Request('%s/transactions/%s/add-operation' % (self.server_url, transaction_id), 'POST', operation._as_json()))
 
         self._ensure_transaction_found(response, transaction_id)
         self._ensure_bucket_found(response, space_name=None, bucket_name=operation.bucket_name,
@@ -258,7 +265,8 @@ class EasydbClient:
         return self._without_ending_slash('%s/buckets/%s' % (self._build_space_url(space_name), bucket_name))
 
     def _build_element_url(self, space_name, bucket_name, element_name=""):
-        return self._without_ending_slash('%s/elements/%s' % (self._build_bucket_url(space_name, bucket_name), element_name))
+        return self._without_ending_slash(
+            '%s/elements/%s' % (self._build_bucket_url(space_name, bucket_name), element_name))
 
     @staticmethod
     def _without_ending_slash(s: str):

@@ -116,7 +116,7 @@ class Bucket:
     def __str__(self):
         return self.__repr__()
 
-    def as_json(self):
+    def _as_json(self):
         return {'bucketName': self.name}
 
 class ElementField:
@@ -162,7 +162,7 @@ class MultipleElementFields:
     def __hash__(self):
         return hash(self.fields)
 
-    def as_json(self):
+    def _as_json(self):
         return {'fields': [dict((('name', f.name), ('value', f.value))) for f in self.fields]}
 
 
@@ -240,15 +240,15 @@ class PaginatedElements:
 
 
 class TransactionOperation:
-    def __init__(self, type: str, bucket_name: str, element_id: str = None, fields: List[ElementField] = None):
+    def __init__(self, type: str, bucket_name: str, element_id: str = None, fields: MultipleElementFields = None):
         self.type = type
         self.bucket_name = bucket_name
         self.element_id = element_id
-        self.fields = MultipleElementFields(fields)
+        self.fields = fields or MultipleElementFields()
 
-    def as_json(self):
+    def _as_json(self):
         json = {'type': self.type, 'bucketName': self.bucket_name, 'elementId': self.element_id}
-        json.update(self.fields.as_json())
+        json.update(self.fields._as_json())
         return json
 
     def __str__(self):

@@ -1,7 +1,7 @@
 from easydb import EasydbClient, SpaceDoesNotExistException, TransactionOperation, ElementField, OperationResult, \
     Element, TransactionDoesNotExistException, BucketDoesNotExistException, ElementDoesNotExistException,\
     UnknownOperationException
-from easydb.domain import TransactionAbortedException
+from easydb.domain import TransactionAbortedException, MultipleElementFields
 from tests.base_test import HttpTest
 
 
@@ -76,7 +76,7 @@ class TransactionTest(HttpTest):
 
     def test_should_add_update_operation_to_transaction_and_return_empty_result(self):
         # given
-        operation = TransactionOperation('UPDATE', 'users', 'exampleElementId', [ElementField('username', 'Mirek')])
+        operation = TransactionOperation('UPDATE', 'users', 'exampleElementId', MultipleElementFields().add_field('username', 'Mirek'))
 
         # when
         operation_result = self.loop.run_until_complete(
@@ -179,4 +179,4 @@ class TransactionTest(HttpTest):
 
         # and
         self.assertEqual(self.verify('/api/v1/transactions/exampleTransactionId/add-operation', 'POST',
-                                     request_file='add_read_operation_request.json'), 3)
+                                     request_file='add_read_operation_request.json'), 1)
