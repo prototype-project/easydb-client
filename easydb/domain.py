@@ -207,15 +207,16 @@ class Transaction:
 
 
 class FilterQuery:
-    def __init__(self, space_name, bucket_name, limit=20, offset=0):
+    def __init__(self, space_name, bucket_name, limit=20, offset=0, query=None):
         self.space_name = space_name
         self.bucket_name = bucket_name
         self.limit = limit
         self.offset = offset
+        self.query = query
 
     def __str__(self):
-        return 'FilterQuery(space_name=%s, bucket_name=%s, limit=%d, offset=%d)' % \
-               (self.space_name, self.bucket_name, self.limit, self.offset)
+        return 'FilterQuery(space_name=%s, bucket_name=%s, limit=%d, offset=%d, query=%s)' % \
+               (self.space_name, self.bucket_name, self.limit, self.offset, self.query)
 
     def __repr__(self):
         return self.__str__()

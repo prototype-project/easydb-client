@@ -1,63 +1,63 @@
-from .base_test import HttpTest
+from aioresponses import aioresponses
 
 from easydb import EasydbClient, SpaceDoesNotExistException
+from tests.base_test import BaseTest
 
 
-class SpaceTests(HttpTest):
+class SpaceTests(BaseTest):
     def setUp(self):
         super().setUp()
         self.easydb_client = EasydbClient(self.server_url)
+        self.spaces_url = self.server_url + '/api/v1/spaces'
 
-    def before_test_should_create_space(self):
-        self.register_route('/api/v1/spaces', 'POST', 200, response_file='space.json')
+    @aioresponses()
+    def test_should_create_space(self, mocked: aioresponses):
+        # given
+        mocked.post(self.spaces_url, status=201, payload=dict(spaceName="exampleSpace"))
 
-    def before_test_should_delete_space(self):
-        self.register_route('/api/v1/spaces/exampleSpace', 'DELETE', 200)
-
-    def before_test_should_throw_error_when_deleting_not_existing_space(self):
-        self.register_route('/api/v1/spaces/notExistingSpace', 'DELETE', 404, response_file='not_existing_space_response.json')
-
-    def before_test_should_get_space(self):
-        self.register_route('/api/v1/spaces/exampleSpace', 'GET', 200, response_file="space.json")
-
-    def before_test_should_throw_error_when_getting_not_existing_space(self):
-        self.register_route('/api/v1/spaces/notExistingSpace', 'GET', 404, response_file='not_existing_space_response.json')
-
-    def test_should_create_space(self):
         # when
         space_name = self.loop.run_until_complete(self.easydb_client.create_space())
 
         # then
-        self.assertEqual(self.verify('/api/v1/spaces', 'POST', 'space.json'), 1)
         self.assertEqual(space_name, 'exampleSpace')
 
-    def test_should_delete_space(self):
+    @aioresponses()
+    def test_should_delete_space(self, mocked: aioresponses):
+        # given
+        mocked.delete(self.spaces_url + "/exampleSpace")
+
         # when
         self.loop.run_until_complete(self.easydb_client.delete_space('exampleSpace'))
 
-        # then
-        self.assertEqual(self.verify('/api/v1/spaces/exampleSpace', 'DELETE'), 1)
+    @aioresponses()
+    def test_should_throw_error_when_deleting_not_existing_space(self, mocked: aioresponses):
+        # given
+        mocked.delete(self.spaces_url + "/notExistingSpace", status=404, payload={"errorCode": "SPACE_DOES_NOT_EXIST",
+                                                                                  "status": "NOT_FOUND",
+                                                                                  "message": "Space notExistingSpace doues not exist"})
 
-    def test_should_throw_error_when_deleting_not_existing_space(self):
         # expect
         with self.assertRaises(SpaceDoesNotExistException):
             self.loop.run_until_complete(self.easydb_client.delete_space('notExistingSpace'))
 
-        # and
-        self.assertEqual(self.verify('/api/v1/spaces/notExistingSpace', 'DELETE'), 1)
+    @aioresponses()
+    def test_should_get_space(self, mocked: aioresponses):
+        # given
+        mocked.get(self.spaces_url + "/exampleSpace", payload=dict(spaceName="exampleSpace"))
 
-    def test_should_get_space(self):
         # when
         space = self.loop.run_until_complete(self.easydb_client.get_space('exampleSpace'))
 
         # then
-        self.assertEqual(self.verify('/api/v1/spaces/exampleSpace', 'GET'), 1)
         self.assertEqual(space.name, 'exampleSpace')
 
-    def test_should_throw_error_when_getting_not_existing_space(self):
+    @aioresponses()
+    def test_should_throw_error_when_getting_not_existing_space(self, mocked: aioresponses):
+        # given
+        mocked.get(self.spaces_url + "/notExistingSpace", status=404, payload={"errorCode": "SPACE_DOES_NOT_EXIST",
+                                                                   "status": "NOT_FOUND",
+                                                                   "message": "Space notExistingSpace doues not exist"})
+
         # expect
         with self.assertRaises(SpaceDoesNotExistException):
             self.loop.run_until_complete(self.easydb_client.get_space('notExistingSpace'))
-
-        # and
-        self.assertEqual(self.verify('/api/v1/spaces/notExistingSpace', 'GET'), 1)

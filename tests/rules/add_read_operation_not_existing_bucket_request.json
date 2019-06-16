@@ -1,6 +1,0 @@
-{
-  "type": "READ",
-  "bucketName": "notExistingBucket",
-  "elementId": "exampleElementId",
-  "fields": []
-}

@@ -1,6 +1,0 @@
-{
-  "fields": [
-    {"name": "firstName", "value": "John"},
-    {"name": "lastName", "value": "Smith"}
-  ]
-}

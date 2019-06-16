@@ -119,9 +119,14 @@ class EasydbClient:
         return Element(element_id, fields)
 
     async def filter_elements_by_query(self, query: FilterQuery):
-        response = await self._perform_request(
-            Request('%s/spaces/%s/buckets/%s/elements?limit=%d&offset=%d' %
-                    (self.server_url, query.space_name, query.bucket_name, query.limit, query.offset), 'GET'))
+        if query.query:
+            request = Request('%s/spaces/%s/buckets/%s/elements?limit=%d&offset=%d&query=%s' %
+                    (self.server_url, query.space_name, query.bucket_name, query.limit, query.offset, query.query), 'GET')
+        else:
+            request = Request('%s/spaces/%s/buckets/%s/elements?limit=%d&offset=%d' %
+                    (self.server_url, query.space_name, query.bucket_name, query.limit, query.offset), 'GET')
+
+        response = await self._perform_request(request)
 
         self._ensure_space_found(response, query.space_name)
         self._ensure_bucket_found(response, query.space_name, query.bucket_name)
@@ -133,20 +138,20 @@ class EasydbClient:
 
     async def begin_transaction(self, space_name: str):
         response = await self._perform_request(
-            Request('%s/transactions/%s' % (self.server_url, space_name), 'POST'))
+            Request('%s/spaces/%s/transactions' % (self.server_url, space_name), 'POST'))
 
         self._ensure_space_found(response, space_name)
         self._ensure_status_2xx(response)
         return self._parse_transaction(response.data)
 
-    async def add_operation(self, transaction_id: str, operation: TransactionOperation):
+    async def add_operation(self, space_name: str, transaction_id: str, operation: TransactionOperation):
         self._ensure_operation_constraints(operation)
 
         # response = await self._add_operation_request_with_retry(
         #     Request('%s/transactions/%s/add-operation' % (self.server_url, transaction_id), 'POST',
         #             operation._as_json()))
         response = await self._perform_request(
-            Request('%s/transactions/%s/add-operation' % (self.server_url, transaction_id), 'POST', operation._as_json()))
+            Request('%s/spaces/%s/transactions/%s/add-operation' % (self.server_url, space_name, transaction_id), 'POST', operation._as_json()))
 
         self._ensure_transaction_found(response, transaction_id)
         self._ensure_bucket_found(response, space_name=None, bucket_name=operation.bucket_name,
@@ -157,10 +162,11 @@ class EasydbClient:
         self._ensure_status_2xx(response)
         return self._parse_operation_result(response.data)
 
-    async def commit_transaction(self, transaction_id):
+    async def commit_transaction(self, space_name, transaction_id):
         response = await self._perform_request(
-            Request('%s/transactions/%s/commit' % (self.server_url, transaction_id), 'POST'))
+            Request('%s/spaces/%s/transactions/%s/commit' % (self.server_url, space_name, transaction_id), 'POST'))
 
+        self._ensure_space_found(response, space_name)
         self._ensure_transaction_found(response, transaction_id)
         self._ensure_transaction_not_aborted(response, transaction_id)
         self._ensure_status_2xx(response)
@@ -216,7 +222,7 @@ class EasydbClient:
 
     @staticmethod
     def _ensure_transaction_not_aborted(response, transaction_id):
-        if response.status == 200 and response.data['errorCode'] == TRANSACTION_ABORTED:
+        if response.status == 409 and response.data and response.data['errorCode'] == TRANSACTION_ABORTED:
             raise TransactionAbortedException(transaction_id)
 
     @staticmethod

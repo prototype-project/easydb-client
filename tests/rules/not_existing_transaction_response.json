@@ -1,5 +1,0 @@
-{
-  "errorCode": "TRANSACTION_DOES_NOT_EXIST",
-  "status": "NOT_FOUND",
-  "message": "Transaction notExistingTransaction does not exist"
-}
