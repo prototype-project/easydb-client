@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="easydb",
+    name="easydb-http-client",
     version="0.0.1",
     author="Daniel Fąderski",
     author_email="daniel.faderski@gmail.com",

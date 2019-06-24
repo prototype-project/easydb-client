@@ -1,5 +1,9 @@
 
 build_package:
-	rm -rf build dist easydb.egg-info
-	python3 -m pip install --user --upgrade setuptools wheel
+	rm -rf build dist easydb*.egg*
 	python3 setup.py sdist bdist_wheel
+
+
+upload_package:
+	python -m twine upload dist/*
+
