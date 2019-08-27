@@ -5,6 +5,7 @@ from easydb import EasydbClient, MultipleElementFields, Element, SpaceDoesNotExi
 from tests.base_test import BaseTest
 
 
+
 class BucketTests(BaseTest):
     def setUp(self):
         super().setUp()
