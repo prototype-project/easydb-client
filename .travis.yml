@@ -9,5 +9,4 @@ script:
   - pytest
 
 after_success:
-  - ls -la
   - sh .travis/publish.sh
