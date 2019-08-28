@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="easydb-http-client",
-    version="0.0.1",
+    version="0.0.2",
     author="Daniel Fąderski",
     author_email="daniel.faderski@gmail.com",
     description="Http client for Easydb database",
